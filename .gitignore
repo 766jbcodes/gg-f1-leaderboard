@@ -23,5 +23,5 @@ dist-ssr
 *.sln
 *.sw?
 
-# Local Netlify folder
-.netlify
+# Local Netlify folder - commented out to allow CI/CD to work
+# .netlify
