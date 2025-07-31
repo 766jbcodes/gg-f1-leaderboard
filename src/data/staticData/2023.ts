@@ -13,60 +13,32 @@ const participants: Participant[] = [
   { id: 'jacob', name: 'Jacob' },
 ];
 
-const driverPredictions: DriverPrediction[] = [
-  {
-    participantId: 'emma',
-    predictions: [
-      'Verstappen', 'Hamilton', 'Norris', 'Piastri', 'Leclerc', 'Russell', 'Sainz', 'Lawson', 'Antonelli', 'Albon',
-      'Gasly', 'Ocon', 'Alonso', 'Doohan', 'Tsunoda', 'Hadjar', 'Bearman', 'Stroll', 'Hulkenberg', 'Bortoleto'
-    ]
-  },
-  {
-    participantId: 'jeremy',
-    predictions: [
-      'Piastri', 'Verstappen', 'Norris', 'Leclerc', 'Hamilton', 'Russell', 'Lawson', 'Antonelli', 'Gasly', 'Albon',
-      'Sainz', 'Tsunoda', 'Ocon', 'Alonso', 'Doohan', 'Hadjar', 'Bearman', 'Stroll', 'Hulkenberg', 'Bortoleto'
-    ]
-  },
-  {
-    participantId: 'laura',
-    predictions: [
-      'Verstappen', 'Norris', 'Piastri', 'Leclerc', 'Hamilton', 'Russell', 'Lawson', 'Antonelli', 'Alonso', 'Sainz',
-      'Albon', 'Gasly', 'Stroll', 'Hulkenberg', 'Bearman', 'Tsunoda', 'Ocon', 'Bortoleto', 'Hadjar', 'Doohan'
-    ]
-  },
-  {
-    participantId: 'jacob',
-    predictions: [
-      'Norris', 'Verstappen', 'Piastri', 'Leclerc', 'Hamilton', 'Russell', 'Lawson', 'Antonelli', 'Alonso', 'Sainz',
-      'Albon', 'Gasly', 'Stroll', 'Hulkenberg', 'Bearman', 'Tsunoda', 'Ocon', 'Bortoleto', 'Hadjar', 'Doohan'
-    ]
-  }
-];
+// No driver predictions for 2023
+const driverPredictions: DriverPrediction[] = [];
 
 const constructorPredictions: ConstructorPrediction[] = [
   {
     participantId: 'emma',
     predictions: [
-      'Mclaren', 'Ferrari', 'Redbull', 'Mercedes', 'Williams', 'Alpine', 'Haas', 'RB', 'Aston Martin', 'Sauber'
+      'Red Bull Racing', 'Ferrari', 'Mercedes', 'Aston Martin', 'Alpine F1 Team', 'McLaren', 'Haas F1 Team', 'Alfa Romeo', 'AlphaTauri', 'Williams'
     ]
   },
   {
     participantId: 'jeremy',
     predictions: [
-      'Mclaren', 'Ferrari', 'Redbull', 'Mercedes', 'Alpine', 'Williams', 'RB', 'Haas', 'Aston Martin', 'Sauber'
+      'Red Bull Racing', 'Mercedes', 'Ferrari', 'Aston Martin', 'Alpine F1 Team', 'Alfa Romeo', 'McLaren', 'Haas F1 Team', 'AlphaTauri', 'Williams'
     ]
   },
   {
     participantId: 'laura',
     predictions: [
-      'Mclaren', 'Ferrari', 'Redbull', 'Mercedes', 'Aston Martin', 'Williams', 'Haas', 'Alpine', 'RB', 'Sauber'
+      'Red Bull Racing', 'Mercedes', 'Ferrari', 'Alpine F1 Team', 'McLaren', 'Aston Martin', 'Alfa Romeo', 'Haas F1 Team', 'AlphaTauri', 'Williams'
     ]
   },
   {
     participantId: 'jacob',
     predictions: [
-      'Mclaren', 'Ferrari', 'Mercedes', 'Redbull', 'Aston Martin', 'Williams', 'Haas', 'RB', 'Alpine', 'Sauber'
+      'Red Bull Racing', 'Mercedes', 'Ferrari', 'McLaren', 'Alpine F1 Team', 'Aston Martin', 'Alfa Romeo', 'Haas F1 Team', 'AlphaTauri', 'Williams'
     ]
   }
 ];
