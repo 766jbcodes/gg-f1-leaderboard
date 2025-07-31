@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import type { SeasonType, ChampionshipType } from '../types/common';
 import type { ScoringType } from './ScoringToggle';
 import { useF1Data } from '../hooks/useF1Data';
-import { participants, driverPredictions, constructorPredictions } from '../data/predictions';
 import {
   getDriverPredictionDetails,
   getConstructorPredictionDetails
@@ -23,13 +22,13 @@ export const PredictionsView: React.FC<PredictionsViewProps> = ({
   scoringType
 }) => {
   const { data, isLoading, error } = useF1Data(season, championshipType);
-  const [selectedParticipant, setSelectedParticipant] = useState<string>(participants[0]?.id || '');
+  const [selectedParticipant, setSelectedParticipant] = useState<string>(data?.participants[0]?.id || '');
 
   if (!data && !isLoading) return null;
 
-  const selectedParticipantData = participants.find(p => p.id === selectedParticipant);
-  const driverPrediction = driverPredictions.find(p => p.participantId === selectedParticipant);
-  const constructorPrediction = constructorPredictions.find(p => p.participantId === selectedParticipant);
+  const selectedParticipantData = data?.participants.find(p => p.id === selectedParticipant);
+  const driverPrediction = data?.predictions.drivers.find(p => p.participantId === selectedParticipant);
+  const constructorPrediction = data?.predictions.constructors.find(p => p.participantId === selectedParticipant);
 
   // Table columns
   const columns = ['Position', 'Prediction', 'Current Standing', 'Points'];
@@ -87,7 +86,7 @@ export const PredictionsView: React.FC<PredictionsViewProps> = ({
       <div className="mb-6 flex justify-center">
         <ToggleGroup
           label="Participant:"
-          options={participants.map(p => ({ value: p.id, label: p.name }))}
+          options={data?.participants.map(p => ({ value: p.id, label: p.name })) || []}
           value={selectedParticipant}
           onChange={setSelectedParticipant}
         />

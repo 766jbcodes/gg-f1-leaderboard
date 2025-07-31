@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStandings } from '../hooks/useStandings';
-import { participants, driverPredictions, constructorPredictions } from '../data/predictions';
+import { useF1Data } from '../hooks/useF1Data';
 import { currentDriverStandings, currentConstructorStandings } from '../data/currentStandings';
 import { 
   calculateDriverPredictionScore, 
@@ -29,6 +29,8 @@ export function Admin() {
     cacheInfo,
     refreshStandings 
   } = useStandings();
+
+  const { data: f1Data } = useF1Data('current', 'drivers');
 
   const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
 
@@ -58,8 +60,16 @@ export function Admin() {
   };
 
   const exportData = () => {
+    // For current season, f1Data.predictions has drivers and constructors properties
+    const driverPredictions = 'drivers' in (f1Data?.predictions || {}) 
+      ? (f1Data?.predictions as any)?.drivers || []
+      : [];
+    const constructorPredictions = 'constructors' in (f1Data?.predictions || {})
+      ? (f1Data?.predictions as any)?.constructors || []
+      : [];
+
     const data = {
-      participants,
+      participants: f1Data?.participants || [],
       driverPredictions,
       constructorPredictions,
       currentDriverStandings,
@@ -98,46 +108,49 @@ export function Admin() {
     let csv = 'Type,Data\n';
     
     // Participants
-    csv += 'Participants,\n';
-    csv += 'ID,Name\n';
-    data.participants.forEach((p: Participant) => {
-      csv += `${p.id},${p.name}\n`;
+    data.participants.forEach((participant, index) => {
+      csv += `Participant ${index + 1},${participant.name}\n`;
     });
     
     // Driver Predictions
-    csv += '\nDriver Predictions,\n';
-    csv += 'Participant ID,Predictions\n';
-    data.driverPredictions.forEach((p: DriverPrediction) => {
-      csv += `${p.participantId},"${p.predictions.join(', ')}"\n`;
+    data.driverPredictions.forEach((prediction, index) => {
+      const participant = data.participants.find(p => p.id === prediction.participantId);
+      csv += `Driver Prediction ${index + 1} (${participant?.name || 'Unknown'}),${prediction.predictions.join(', ')}\n`;
     });
     
     // Constructor Predictions
-    csv += '\nConstructor Predictions,\n';
-    csv += 'Participant ID,Predictions\n';
-    data.constructorPredictions.forEach((p: ConstructorPrediction) => {
-      csv += `${p.participantId},"${p.predictions.join(', ')}"\n`;
+    data.constructorPredictions.forEach((prediction, index) => {
+      const participant = data.participants.find(p => p.id === prediction.participantId);
+      csv += `Constructor Prediction ${index + 1} (${participant?.name || 'Unknown'}),${prediction.predictions.join(', ')}\n`;
     });
     
-    // Current Standings
-    csv += '\nCurrent Driver Standings,\n';
-    csv += 'Position,Driver,Constructor,Points\n';
-    data.currentDriverStandings.forEach((s: DriverStanding) => {
-      csv += `${s.position},${s.driver},${s.constructor},${s.points}\n`;
+    // Current Driver Standings
+    data.currentDriverStandings.forEach((standing, index) => {
+      csv += `Driver Standing ${index + 1},${standing.driver} - ${standing.constructor} - ${standing.points} points\n`;
     });
     
-    csv += '\nCurrent Constructor Standings,\n';
-    csv += 'Position,Constructor,Points\n';
-    data.currentConstructorStandings.forEach((s: ConstructorStanding) => {
-      csv += `${s.position},${s.constructor},${s.points}\n`;
+    // Current Constructor Standings
+    data.currentConstructorStandings.forEach((standing, index) => {
+      csv += `Constructor Standing ${index + 1},${standing.constructor} - ${standing.points} points\n`;
     });
     
     return csv;
   };
 
   const calculateAllScores = () => {
-    const scores = participants.map(participant => {
-      const driverPrediction = driverPredictions.find(p => p.participantId === participant.id);
-      const constructorPrediction = constructorPredictions.find(p => p.participantId === participant.id);
+    if (!f1Data?.participants) return [];
+    
+    // For current season, f1Data.predictions has drivers and constructors properties
+    const driverPredictions = 'drivers' in (f1Data?.predictions || {}) 
+      ? (f1Data?.predictions as any)?.drivers || []
+      : [];
+    const constructorPredictions = 'constructors' in (f1Data?.predictions || {})
+      ? (f1Data?.predictions as any)?.constructors || []
+      : [];
+    
+    const scores = f1Data.participants.map(participant => {
+      const driverPrediction = driverPredictions.find((p: DriverPrediction) => p.participantId === participant.id);
+      const constructorPrediction = constructorPredictions.find((p: ConstructorPrediction) => p.participantId === participant.id);
 
       const driverPositionScore = driverPrediction 
         ? calculateDriverPredictionScore(driverPrediction, currentDriverStandings)
@@ -380,7 +393,7 @@ export function Admin() {
           <h3 className="text-lg font-bold text-navy mb-4">Data Summary</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-lg border border-lightgrey">
-              <div className="text-2xl font-bold text-navy">{participants.length}</div>
+              <div className="text-2xl font-bold text-navy">{f1Data?.participants?.length || 0}</div>
               <div className="text-sm text-navy">Participants</div>
             </div>
             <div className="bg-white p-4 rounded-lg border border-lightgrey">

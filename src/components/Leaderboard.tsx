@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { participants, driverPredictions, constructorPredictions } from '../data/predictions';
 import { 
   calculateDriverPredictionScore, 
   calculateConstructorPredictionScore,
@@ -7,13 +6,24 @@ import {
   calculateConstructorCorrectGuesses
 } from '../utils/calculations';
 import { useStandings } from '../hooks/useStandings';
+import { useF1Data } from '../hooks/useF1Data';
+import type { SeasonType, ChampionshipType } from '../types/common';
 
-const Leaderboard: React.FC = () => {
+interface LeaderboardProps {
+  season?: SeasonType;
+  championshipType?: ChampionshipType;
+}
+
+const Leaderboard: React.FC<LeaderboardProps> = ({ 
+  season = 'current', 
+  championshipType = 'drivers' 
+}) => {
   const [scoringMethod, setScoringMethod] = useState<'position-difference' | 'correct-guesses'>('position-difference');
   const [error, setError] = useState<string | null>(null);
 
   // Use centralized standings data
-  const { driverStandings, constructorStandings, error: standingsError } = useStandings();
+  const { driverStandings, constructorStandings, error: standingsError } = useStandings(season);
+  const { data: f1Data } = useF1Data(season, championshipType);
 
   const participantScores = useMemo(() => {
     try {
@@ -27,9 +37,13 @@ const Leaderboard: React.FC = () => {
         throw new Error('Unable to load current standings data');
       }
 
-      return participants.map(participant => {
-        const driverPrediction = driverPredictions.find(p => p.participantId === participant.id);
-        const constructorPrediction = constructorPredictions.find(p => p.participantId === participant.id);
+      if (!f1Data?.participants) {
+        throw new Error('Unable to load participants data');
+      }
+
+      return f1Data.participants.map(participant => {
+        const driverPrediction = f1Data.predictions.drivers.find(p => p.participantId === participant.id);
+        const constructorPrediction = f1Data.predictions.constructors.find(p => p.participantId === participant.id);
 
         // Use fallback values instead of throwing errors
         const driverScore = driverPrediction 
@@ -62,7 +76,7 @@ const Leaderboard: React.FC = () => {
       setError(`Failed to calculate scores: ${errorMessage}`);
       return [];
     }
-  }, [scoringMethod, driverStandings, constructorStandings, standingsError]);
+  }, [scoringMethod, driverStandings, constructorStandings, standingsError, f1Data]);
 
   // Filter and search participants
   const filteredScores = useMemo(() => {
