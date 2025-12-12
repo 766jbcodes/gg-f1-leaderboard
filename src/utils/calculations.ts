@@ -21,6 +21,8 @@ function normalizeConstructor(name: string): string {
     'Racing Bulls': 'RB F1 Team',
     'Stake F1 Team': 'Sauber',
     'Sauber': 'Sauber',
+    'Red Bull Racing': 'Red Bull', // Map "Red Bull Racing" to "Red Bull" for API matching
+    'Red Bull': 'Red Bull',
     // Add more mappings as needed
   };
   return map[name] || name;
@@ -65,10 +67,18 @@ export function calculateConstructorPredictionScore(
   prediction.predictions.forEach((predictedConstructor, predictedPosition) => {
     // Use normalized constructor names for better matching
     const normalizedPredicted = normalizeConstructor(predictedConstructor);
-    const actualConstructor = actualStandings.find(c =>
-      c.constructor.toLowerCase().includes(normalizedPredicted.toLowerCase()) ||
-      c.constructor.toLowerCase().includes(predictedConstructor.toLowerCase())
-    );
+    const actualConstructor = actualStandings.find(c => {
+      const actualLower = c.constructor.toLowerCase();
+      const predictedLower = predictedConstructor.toLowerCase();
+      const normalizedLower = normalizedPredicted.toLowerCase();
+      // Try multiple matching strategies
+      return actualLower === normalizedLower ||
+             actualLower === predictedLower ||
+             actualLower.includes(normalizedLower) ||
+             normalizedLower.includes(actualLower) ||
+             actualLower.includes(predictedLower) ||
+             predictedLower.includes(actualLower);
+    });
     if (actualConstructor) {
       const positionDifference = Math.abs(actualConstructor.position - (predictedPosition + 1));
       totalScore += positionDifference;
@@ -110,10 +120,18 @@ export function calculateConstructorCorrectGuesses(
   prediction.predictions.forEach((predictedConstructor, predictedPosition) => {
     // Use normalized constructor names for better matching
     const normalizedPredicted = normalizeConstructor(predictedConstructor);
-    const actualConstructor = actualStandings.find(c =>
-      c.constructor.toLowerCase().includes(normalizedPredicted.toLowerCase()) ||
-      c.constructor.toLowerCase().includes(predictedConstructor.toLowerCase())
-    );
+    const actualConstructor = actualStandings.find(c => {
+      const actualLower = c.constructor.toLowerCase();
+      const predictedLower = predictedConstructor.toLowerCase();
+      const normalizedLower = normalizedPredicted.toLowerCase();
+      // Try multiple matching strategies
+      return actualLower === normalizedLower ||
+             actualLower === predictedLower ||
+             actualLower.includes(normalizedLower) ||
+             normalizedLower.includes(actualLower) ||
+             actualLower.includes(predictedLower) ||
+             predictedLower.includes(actualLower);
+    });
     if (actualConstructor && actualConstructor.position === (predictedPosition + 1)) {
       correctGuesses += 1;
     }
@@ -152,10 +170,18 @@ export function getConstructorPredictionDetails(
   return prediction.predictions.map((predictedConstructor, index) => {
     // Use normalized constructor names for better matching
     const normalizedPredicted = normalizeConstructor(predictedConstructor);
-    const actualConstructor = actualStandings.find(c =>
-      c.constructor.toLowerCase().includes(normalizedPredicted.toLowerCase()) ||
-      c.constructor.toLowerCase().includes(predictedConstructor.toLowerCase())
-    );
+    const actualConstructor = actualStandings.find(c => {
+      const actualLower = c.constructor.toLowerCase();
+      const predictedLower = predictedConstructor.toLowerCase();
+      const normalizedLower = normalizedPredicted.toLowerCase();
+      // Try multiple matching strategies
+      return actualLower === normalizedLower ||
+             actualLower === predictedLower ||
+             actualLower.includes(normalizedLower) ||
+             normalizedLower.includes(actualLower) ||
+             actualLower.includes(predictedLower) ||
+             predictedLower.includes(actualLower);
+    });
     const predictedPosition = index + 1;
     
     return {

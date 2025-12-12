@@ -1,6 +1,6 @@
 export type TabType = 'predictions' | 'standings' | 'leaderboard' | 'admin';
 
-export type SeasonType = 'current' | '2023' | '2024';
+export type SeasonType = 'current' | '2023' | '2024' | '2025';
 
 export interface Tab {
   id: TabType;

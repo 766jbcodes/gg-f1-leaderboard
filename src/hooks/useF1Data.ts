@@ -14,18 +14,30 @@ const STATIC_DATA: Record<string, typeof data2023> = {
 
 export const useF1Data = (season: SeasonType, championshipType: ChampionshipType) => {
   const isCurrentSeason = season === 'current';
+  // Treat 2025 the same as current - both use live API data since 2025 is the current year
+  const is2025Season = season === '2025';
 
+  // For both 'current' and '2025', use live API data
   const queryResult = useQuery({
     queryKey: ['f1', season, championshipType],
     queryFn: () => fetchCurrentStandings(championshipType),
-    enabled: isCurrentSeason,
+    enabled: isCurrentSeason || is2025Season,
   });
 
-  if (isCurrentSeason) {
+  if (isCurrentSeason || is2025Season) {
     return queryResult;
   }
 
+  // For past seasons (2023, 2024), use static data
   const staticData = STATIC_DATA[season];
+
+  if (!staticData) {
+    return {
+      data: undefined,
+      isLoading: false,
+      error: new Error(`No data available for season ${season}`),
+    };
+  }
 
   return {
     data: {

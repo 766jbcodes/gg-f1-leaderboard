@@ -32,7 +32,9 @@ interface TabContentProps {
 }
 
 export const TabContent: React.FC<TabContentProps> = ({ tab, season, championshipType, scoringType, appData }) => {
-  // Always call both hooks
+  // Always call useF1Data hook (it handles both current and static seasons)
+  // Only call useF1AppData if season is 'current' (to avoid conditional hooks)
+  const isCurrentSeason = season === 'current';
   const appDataQuery = useF1AppData(championshipType);
   const fallbackDataQuery = useF1Data(season, championshipType);
 
@@ -45,7 +47,7 @@ export const TabContent: React.FC<TabContentProps> = ({ tab, season, championshi
     data = appData.data;
     isLoading = appData.isLoading;
     error = appData.error;
-  } else if (season === 'current') {
+  } else if (isCurrentSeason) {
     data = appDataQuery.data;
     isLoading = appDataQuery.isLoading;
     error = appDataQuery.error;
@@ -92,10 +94,27 @@ export const TabContent: React.FC<TabContentProps> = ({ tab, season, championshi
           score: score.score,
         }));
 
+        // Calculate winners dynamically from the sorted scores
+        // Handle ties - all participants with the best (winning) score are winners
+        // But don't mark winners if all participants score 0 (no predictions were made)
+        const winningScore = sortedScores.length > 0 ? sortedScores[0].score : undefined;
+        const allScoresZero = sortedScores.length > 0 && sortedScores.every(score => score.score === 0);
+        const winnerNames = (winningScore !== undefined && !allScoresZero)
+          ? sortedScores
+              .filter(score => score.score === winningScore)
+              .map(score => score.name)
+          : [];
+
         return (
           <div>
             <ScoringHint scoringType={scoringType} />
-            <DataTable columns={['Position', 'Name', 'Score']} data={scoresWithPosition} isLoading={isLoading} error={error?.message} />
+            <DataTable 
+              columns={['Position', 'Name', 'Score']} 
+              data={scoresWithPosition} 
+              isLoading={isLoading} 
+              error={error?.message}
+              winnerNames={winnerNames}
+            />
             <RaceCaption />
           </div>
         );

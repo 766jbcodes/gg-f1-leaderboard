@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStandings } from '../hooks/useStandings';
 import { useF1Data } from '../hooks/useF1Data';
@@ -9,9 +9,12 @@ import {
   calculateDriverCorrectGuesses,
   calculateConstructorCorrectGuesses
 } from '../utils/calculations';
-import type { Participant, DriverPrediction, ConstructorPrediction, DriverStanding, ConstructorStanding } from '../types';
+import type { Participant, DriverPrediction, ConstructorPrediction, DriverStanding, ConstructorStanding, SeasonType } from '../types';
 import { logger } from '../utils/logger';
 import { driverPredictions, constructorPredictions } from '../data/predictions';
+import { data2023 } from '../data/staticData/2023';
+import { data2024 } from '../data/staticData/2024';
+import { data2025 } from '../data/staticData/2025';
 
 interface ExportData {
   participants: Participant[];
@@ -21,7 +24,11 @@ interface ExportData {
   currentConstructorStandings: ConstructorStanding[];
 }
 
-export function Admin() {
+interface AdminProps {
+  onExit?: () => void;
+}
+
+export function Admin({ onExit }: AdminProps = {}) {
   const navigate = useNavigate();
   const { 
     isLoading, 
@@ -172,6 +179,141 @@ export function Admin() {
 
   const allScores = calculateAllScores();
 
+  // Calculate wins across all seasons and categories
+  const winCounts = useMemo(() => {
+    console.log('=== Calculating win counts ===');
+    
+    // Build current season data from fetched data
+    // Note: Since 2025 is the current year, both '2025' and 'current' use the same API data
+    // We'll use the fetched data for '2025' to avoid double-counting
+    const currentData = f1DataDrivers && f1DataConstructors ? {
+      participants: f1DataDrivers.participants,
+      predictions: {
+        drivers: f1DataDrivers.predictions,
+        constructors: f1DataConstructors.predictions,
+      },
+      standings: {
+        drivers: f1DataDrivers.standings,
+        constructors: f1DataConstructors.standings,
+      },
+    } : null;
+    
+    // Use fetched API data for 2025 (same as current), static data for past seasons
+    const seasons: Array<{ season: SeasonType; data: typeof data2023 | null }> = [
+      { season: '2023', data: data2023 },
+      { season: '2024', data: data2024 },
+      { season: '2025', data: currentData || data2025 }, // Use API data if available, fallback to static
+      // Skip 'current' since it's the same as '2025' - we don't want to double-count
+    ].filter(({ data }) => data !== null) as Array<{ season: SeasonType; data: typeof data2023 }>;
+    
+    console.log('Seasons data:', seasons.map(s => ({ season: s.season, hasData: !!s.data })));
+
+    const categories = [
+      { type: 'drivers' as const, scoring: 'delta' as const },
+      { type: 'drivers' as const, scoring: 'correct' as const },
+      { type: 'constructors' as const, scoring: 'delta' as const },
+      { type: 'constructors' as const, scoring: 'correct' as const },
+    ];
+
+    const wins: Record<string, number> = {};
+
+    seasons.forEach(({ season, data }) => {
+      categories.forEach(({ type, scoring }) => {
+        // Skip if no predictions for this category
+        if (type === 'drivers' && season === '2023' && data.predictions.drivers.length === 0) return;
+        if (type === 'constructors' && season === '2024' && data.predictions.constructors.length === 0) return;
+
+        // Access predictions correctly - handle both object structure (2025) and array structure
+        const standings = data.standings[type];
+        let predictions: (DriverPrediction | ConstructorPrediction)[] | undefined;
+        
+        // Handle different data structures
+        if (type === 'drivers') {
+          predictions = Array.isArray(data.predictions) 
+            ? data.predictions as DriverPrediction[]
+            : (data.predictions as { drivers?: DriverPrediction[] })?.drivers;
+        } else {
+          predictions = Array.isArray(data.predictions)
+            ? data.predictions as ConstructorPrediction[]
+            : (data.predictions as { constructors?: ConstructorPrediction[] })?.constructors;
+        }
+        
+        const participants = data.participants;
+
+        if (!standings || !predictions || !participants) {
+          console.log(`Skipping ${season} ${type} ${scoring}: missing data`, { 
+            hasStandings: !!standings, 
+            hasPredictions: !!predictions,
+            predictionsLength: predictions?.length,
+            hasParticipants: !!participants,
+            predictionsType: typeof predictions,
+            predictionsIsArray: Array.isArray(predictions)
+          });
+          return;
+        }
+
+        // Calculate scores for each participant
+        const participantScores = participants.map((participant) => {
+          const prediction = predictions.find((p) => p.participantId === participant.id);
+          let score = 0;
+
+          if (prediction) {
+            if (type === 'drivers') {
+              score = scoring === 'delta'
+                ? calculateDriverPredictionScore(prediction as DriverPrediction, standings as DriverStanding[])
+                : calculateDriverCorrectGuesses(prediction as DriverPrediction, standings as DriverStanding[]);
+            } else {
+              score = scoring === 'delta'
+                ? calculateConstructorPredictionScore(prediction as ConstructorPrediction, standings as ConstructorStanding[])
+                : calculateConstructorCorrectGuesses(prediction as ConstructorPrediction, standings as ConstructorStanding[]);
+            }
+          } else {
+            console.log(`No prediction found for ${participant.name} in ${season} ${type}`);
+          }
+
+          return { participantId: participant.id, participantName: participant.name, score };
+        });
+
+        // Sort scores
+        const sortedScores = [...participantScores].sort((a, b) =>
+          scoring === 'delta' ? a.score - b.score : b.score - a.score
+        );
+
+        // Check if all scores are 0 (no predictions)
+        const allScoresZero = sortedScores.length > 0 && sortedScores.every(s => s.score === 0);
+        if (allScoresZero) return;
+
+        // Get winning score
+        const winningScore = sortedScores[0]?.score;
+        if (winningScore === undefined) return;
+
+        // Count all winners (handle ties)
+        const winners = sortedScores.filter(s => s.score === winningScore);
+        // Debug: Log all scores for this category
+        console.log(`${season} ${type} ${scoring} scores:`, sortedScores.map(s => `${s.participantName}: ${s.score}`));
+        console.log(`Winning score: ${winningScore}, Winners for ${season} ${type} ${scoring}:`, winners.map(w => `${w.participantName} (${w.score})`));
+        console.log(`All scores:`, JSON.stringify(sortedScores, null, 2));
+        winners.forEach(winner => {
+          const currentWins = wins[winner.participantName] || 0;
+          wins[winner.participantName] = currentWins + 1;
+          console.log(`Adding win to ${winner.participantName}: ${currentWins} -> ${currentWins + 1}`);
+        });
+      });
+    });
+
+    console.log('Final wins object:', wins);
+    return wins;
+  }, [f1DataDrivers, f1DataConstructors]);
+
+  // Convert wins to sorted array
+  const winCountsArray = useMemo(() => {
+    const array = Object.entries(winCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+    console.log('Win counts array:', array);
+    return array;
+  }, [winCounts]);
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="bg-white rounded-xl border-2 border-navy shadow-lg p-8">
@@ -204,7 +346,13 @@ export function Admin() {
               )}
             </button>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => {
+                if (onExit) {
+                  onExit();
+                } else {
+                  navigate('/');
+                }
+              }}
               className="inline-flex items-center px-4 py-2 border-2 border-navy bg-navy text-white font-bold uppercase rounded shadow hover:bg-red hover:border-red transition"
             >
               <svg className="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -398,6 +546,27 @@ export function Admin() {
               <div className="text-2xl font-bold text-navy">{new Date().toLocaleDateString()}</div>
               <div className="text-sm text-navy">Last Updated</div>
             </div>
+          </div>
+        </div>
+
+        {/* Win Counts Across All Seasons */}
+        <div className="mt-8">
+          <h3 className="text-lg font-bold text-navy mb-4">All-Time Wins (Across All Seasons & Categories)</h3>
+          <div className="bg-white border-2 border-navy rounded-xl p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {winCountsArray.map(({ name, count }) => (
+                <div key={name} className="bg-silver border-2 border-navy rounded-lg p-4 text-center">
+                  <div className="text-3xl font-bold text-red mb-2">{count}</div>
+                  <div className="text-sm font-bold text-navy uppercase">{name}</div>
+                  <div className="text-xs text-navy/70 mt-1">
+                    {count === 1 ? 'Win' : 'Wins'}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {winCountsArray.length === 0 && (
+              <p className="text-center text-navy/70 py-4">No wins recorded yet</p>
+            )}
           </div>
         </div>
 

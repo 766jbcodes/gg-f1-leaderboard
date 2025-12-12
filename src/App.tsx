@@ -47,7 +47,7 @@ function App() {
         </div>
 
         {showAdmin ? (
-          <Admin />
+          <Admin onExit={() => setShowAdmin(false)} />
         ) : (
           <Routes>
             <Route path="/" element={
@@ -63,6 +63,11 @@ function App() {
             <Route path="/season/2024" element={
               <MainLayout showAdmin={showAdmin} setShowAdmin={setShowAdmin}>
                 <F1Dashboard season="2024" />
+              </MainLayout>
+            } />
+            <Route path="/season/2025" element={
+              <MainLayout showAdmin={showAdmin} setShowAdmin={setShowAdmin}>
+                <F1Dashboard season="2025" />
               </MainLayout>
             } />
           </Routes>
