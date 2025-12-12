@@ -48,7 +48,7 @@ export function calculateDriverPredictionScore(
     } else {
       // Handle missing driver - assign worst possible score
       totalScore += actualStandings.length;
-      console.warn(`Driver ${predictedDriver} not found in current standings`);
+      // Driver not found - this is expected for some edge cases
     }
   });
   
@@ -73,9 +73,7 @@ export function calculateConstructorPredictionScore(
       const positionDifference = Math.abs(actualConstructor.position - (predictedPosition + 1));
       totalScore += positionDifference;
     } else {
-      // Debug print: show all available constructors
-      console.warn('Available constructors:', actualStandings.map(c => `[${c.constructor}]`).join(', '));
-      console.warn(`Constructor ${predictedConstructor} not found in current standings`);
+      // Constructor not found - this is expected for some edge cases
       totalScore += actualStandings.length;
     }
   });

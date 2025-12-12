@@ -40,4 +40,13 @@ export interface DriverStanding {
   driver: string;
   constructor: string;
   points: number;
+}
+
+/**
+ * Response structure from fetchCurrentStandings
+ */
+export interface F1StandingsResponse {
+  standings: DriverStanding[] | ConstructorStanding[];
+  predictions: DriverPrediction[] | ConstructorPrediction[];
+  participants: Participant[];
 } 

@@ -26,13 +26,15 @@ export function ToggleGroup<T extends string | number>({
           <button
             key={option.value}
             onClick={() => onChange(option.value)}
-            className={`flex-1 px-2 py-1 text-xs font-bold transition-colours border-2 border-navy ${
-              idx === 0 ? 'rounded-l-md' : ''
-            } ${
-              idx === options.length - 1 ? 'rounded-r-md border-l-0' : 'border-r-0'
+            className={`flex-1 px-2 py-1 text-xs font-bold transition-colors border-2 border-navy ${
+              idx === 0 
+                ? 'rounded-l-md border-r-0' 
+                : idx === options.length - 1 
+                  ? 'rounded-r-md -ml-[2px]' 
+                  : 'border-r-0 -ml-[2px]'
             } ${
               value === option.value
-                ? 'bg-navy text-white'
+                ? 'bg-navy text-white z-10'
                 : 'bg-white text-navy hover:bg-silver'
             }`}
           >

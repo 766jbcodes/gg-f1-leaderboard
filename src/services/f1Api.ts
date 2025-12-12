@@ -1,84 +1,27 @@
 import type { DriverStanding, ConstructorStanding } from '../types';
 import type { ChampionshipType } from "../types/common";
+import type {
+  ApiDriverStanding,
+  ApiConstructorStanding,
+  ApiResponse,
+  ApiSeasonResponse,
+  ApiRaceResponse,
+  CacheEntry,
+  LocalStorageCache,
+} from '../types/api';
 import { participants, driverPredictions, constructorPredictions } from "../data/predictions";
+import { config } from '../config/env';
+import { logger } from '../utils/logger';
 
-const API_BASE_URL = 'https://api.jolpi.ca/ergast/f1';
-const FALLBACK_API_URL = 'https://ergast.com/api/f1'; // Official Ergast API as fallback
-const STORAGE_KEY = 'f1_standings_cache';
-const THROTTLE_DELAY = 1000; // 1 second between requests
-
-interface ApiDriverStanding {
-  position: string;
-  points: string;
-  wins: string;
-  Driver: {
-    driverId: string;
-    permanentNumber: string;
-    code: string;
-    url: string;
-    givenName: string;
-    familyName: string;
-    dateOfBirth: string;
-    nationality: string;
-  };
-  Constructors: Array<{
-    constructorId: string;
-    url: string;
-    name: string;
-    nationality: string;
-  }>;
-}
-
-interface ApiConstructorStanding {
-  position: string;
-  points: string;
-  wins: string;
-  Constructor: {
-    constructorId: string;
-    url: string;
-    name: string;
-    nationality: string;
-  };
-}
-
-interface ApiResponse<T> {
-  MRData: {
-    xmlns: string;
-    series: string;
-    url: string;
-    limit: string;
-    offset: string;
-    total: string;
-    StandingsTable: {
-      season: string;
-      StandingsLists: Array<{
-        season: string;
-        round: string;
-        DriverStandings?: T[];
-        ConstructorStandings?: T[];
-      }>;
-    };
-  };
-}
-
-interface CacheEntry {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: any;
-  timestamp: number;
-  etag?: string;
-}
-
-interface LocalStorageCache {
-  [key: string]: CacheEntry;
-}
+const { api: { baseUrl: API_BASE_URL, fallbackUrl: FALLBACK_API_URL }, cache: { storageKey: STORAGE_KEY, throttleDelay: THROTTLE_DELAY } } = config;
 
 export class F1ApiService {
   private static instance: F1ApiService;
   private memoryCache: Map<string, CacheEntry> = new Map();
   private lastRequestTime: number = 0;
   private backgroundRefreshInterval: number | null = null;
-  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-  private readonly LOCAL_STORAGE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+  private readonly CACHE_DURATION = config.cache.memoryCacheDuration;
+  private readonly LOCAL_STORAGE_DURATION = config.cache.localStorageDuration;
 
   static getInstance(): F1ApiService {
     if (!F1ApiService.instance) {
@@ -92,7 +35,7 @@ export class F1ApiService {
       const cached = localStorage.getItem(STORAGE_KEY);
       return cached ? JSON.parse(cached) : {};
     } catch (error) {
-      console.warn('Failed to read from localStorage:', error);
+      logger.warn('Failed to read from localStorage:', error);
       return {};
     }
   }
@@ -101,7 +44,7 @@ export class F1ApiService {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
     } catch (error) {
-      console.warn('Failed to write to localStorage:', error);
+      logger.warn('Failed to write to localStorage:', error);
     }
   }
 
@@ -154,7 +97,7 @@ export class F1ApiService {
     
     for (const tryUrl of urlsToTry) {
       try {
-        console.log(`Attempting to fetch from: ${tryUrl}`);
+        logger.log(`Attempting to fetch from: ${tryUrl}`);
         const response = await fetch(tryUrl, {
           headers: localCached?.etag ? { 'If-None-Match': localCached.etag } : {}
         });
@@ -186,11 +129,11 @@ export class F1ApiService {
         localCache[cacheKey] = cacheEntry;
         this.setLocalStorageCache(localCache);
         
-        console.log(`Successfully fetched from: ${tryUrl}`);
+        logger.log(`Successfully fetched from: ${tryUrl}`);
         return data;
       } catch (error) {
-        console.error(`Failed to fetch from ${tryUrl}:`, error);
-        console.error('Error details:', {
+        logger.error(`Failed to fetch from ${tryUrl}:`, error);
+        logger.debug('Error details:', {
           name: error instanceof Error ? error.name : 'Unknown',
           message: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : undefined
@@ -201,7 +144,7 @@ export class F1ApiService {
           // Return cached data if available, even if stale
           const fallbackData = localCached || memoryCached;
           if (fallbackData) {
-            console.log('Using cached data due to fetch error');
+            logger.log('Using cached data due to fetch error');
             return fallbackData.data;
           }
           
@@ -246,18 +189,18 @@ export class F1ApiService {
             localCache[cacheKey] = cacheEntry;
             this.setLocalStorageCache(localCache);
             
-            console.log('Background refresh completed for:', cacheKey, 'from:', tryUrl);
+            logger.debug('Background refresh completed for:', cacheKey, 'from:', tryUrl);
             return;
           }
         } catch (error) {
-          console.warn(`Background refresh failed for ${tryUrl}:`, error);
+          logger.warn(`Background refresh failed for ${tryUrl}:`, error);
           // Continue to next URL if available
         }
       }
       
-      console.warn('Background refresh failed for all endpoints:', cacheKey);
+      logger.warn('Background refresh failed for all endpoints:', cacheKey);
     } catch (error) {
-      console.warn('Background refresh failed:', error);
+      logger.warn('Background refresh failed:', error);
     }
   }
 
@@ -267,7 +210,7 @@ export class F1ApiService {
     }
     
     this.backgroundRefreshInterval = setInterval(() => {
-      console.log('Performing background refresh...');
+      logger.debug('Performing background refresh...');
       this.refreshAllDataInBackground();
     }, intervalMinutes * 60 * 1000);
   }
@@ -308,7 +251,7 @@ export class F1ApiService {
         points: parseInt(standing.points)
       }));
     } catch (error) {
-      console.error('Failed to fetch driver standings:', error);
+      logger.error('Failed to fetch driver standings:', error);
       throw error;
     }
   }
@@ -331,36 +274,27 @@ export class F1ApiService {
         points: parseInt(standing.points)
       }));
     } catch (error) {
-      console.error('Failed to fetch constructor standings:', error);
+      logger.error('Failed to fetch constructor standings:', error);
       throw error;
     }
   }
 
   async getCurrentSeason(): Promise<string> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response: any = await this.fetchWithEnhancedCache(
+      const response: ApiSeasonResponse = await this.fetchWithEnhancedCache(
         `${API_BASE_URL}/current.json`,
         'current_season'
       );
       return response.MRData.StandingsTable.season;
     } catch (error) {
-      console.error('Failed to fetch current season:', error);
+      logger.error('Failed to fetch current season:', error);
       return '2025'; // Fallback
     }
   }
 
   async getLatestRace(): Promise<{ name: string; type: 'race' | 'sprint' } | null> {
     try {
-      const response = await this.fetchWithEnhancedCache<{
-        MRData?: {
-          RaceTable?: {
-            Races?: Array<{
-              raceName: string;
-            }>;
-          };
-        };
-      }>(
+      const response = await this.fetchWithEnhancedCache<ApiRaceResponse>(
         `${API_BASE_URL}/current/last/results.json`,
         'latest_race'
       );
@@ -378,7 +312,7 @@ export class F1ApiService {
       
       return null;
     } catch (error) {
-      console.error('Failed to get latest race:', error);
+      logger.error('Failed to get latest race:', error);
       return null;
     }
   }
@@ -388,7 +322,7 @@ export class F1ApiService {
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch (error) {
-      console.warn('Failed to clear localStorage:', error);
+      logger.warn('Failed to clear localStorage:', error);
     }
   }
 
@@ -403,60 +337,23 @@ export class F1ApiService {
 
 export const f1ApiService = F1ApiService.getInstance();
 
-// A simple in-memory cache
-const cache = new Map<string, unknown>();
-
-async function fetchWithFallback(url: string) {
-  if (cache.has(url)) {
-    return cache.get(url);
-  }
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/${url}`);
-    if (!response.ok) throw new Error('Primary API failed');
-    const data = await response.json();
-    cache.set(url, data);
-    return data;
-  } catch {
-    console.warn('Primary API failed, trying fallback...');
-    const response = await fetch(`${FALLBACK_API_URL}/${url}`);
-    if (!response.ok) throw new Error('Fallback API also failed');
-    const data = await response.json();
-    cache.set(url, data);
-    return data;
-  }
-}
-
+/**
+ * Fetch current standings for a championship type
+ * Uses F1ApiService for proper caching and error handling
+ */
 export const fetchCurrentStandings = async (championshipType: ChampionshipType) => {
-  const endpoint = championshipType === 'drivers' 
-    ? 'current/driverStandings.json' 
-    : 'current/constructorStandings.json';
-  
-  const data = await fetchWithFallback(endpoint);
-
-  const standingsTable = data.MRData.StandingsTable.StandingsLists[0];
-  
   let standings: (DriverStanding | ConstructorStanding)[];
+  let predictions: typeof driverPredictions | typeof constructorPredictions;
 
   if (championshipType === 'drivers') {
-    standings = standingsTable.DriverStandings.map((s: ApiDriverStanding): DriverStanding => ({
-      position: parseInt(s.position),
-      driver: `${s.Driver.givenName} ${s.Driver.familyName}`,
-      constructor: s.Constructors[0].name,
-      points: parseInt(s.points),
-    }));
+    const driverStandings = await f1ApiService.getCurrentDriverStandings();
+    standings = driverStandings;
+    predictions = driverPredictions;
   } else {
-    standings = standingsTable.ConstructorStandings.map((s: ApiConstructorStanding): ConstructorStanding => ({
-      position: parseInt(s.position),
-      constructor: s.Constructor.name,
-      points: parseInt(s.points),
-    }));
+    const constructorStandings = await f1ApiService.getCurrentConstructorStandings();
+    standings = constructorStandings;
+    predictions = constructorPredictions;
   }
-
-  // Use the real predictions for the current season
-  const predictions = championshipType === 'drivers' 
-    ? driverPredictions
-    : constructorPredictions;
 
   return {
     standings,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { SeasonType, ChampionshipType } from '../types/common';
 import type { ScoringType } from './ScoringToggle';
 import { useF1Data } from '../hooks/useF1Data';
@@ -6,7 +6,7 @@ import {
   getDriverPredictionDetails,
   getConstructorPredictionDetails
 } from '../utils/calculations';
-import type { DriverStanding, ConstructorStanding } from '../types';
+import type { DriverStanding, ConstructorStanding, DriverPrediction, ConstructorPrediction } from '../types';
 import { ToggleGroup } from './common/ToggleGroup';
 import { ScoringHint } from './ScoringHint';
 
@@ -22,13 +22,42 @@ export const PredictionsView: React.FC<PredictionsViewProps> = ({
   scoringType
 }) => {
   const { data, isLoading, error } = useF1Data(season, championshipType);
-  const [selectedParticipant, setSelectedParticipant] = useState<string>(data?.participants[0]?.id || '');
+  const [selectedParticipant, setSelectedParticipant] = useState<string>('');
+
+  // Update selected participant when data loads
+  useEffect(() => {
+    if (data?.participants && data.participants.length > 0 && !selectedParticipant) {
+      setSelectedParticipant(data.participants[0].id);
+    }
+  }, [data?.participants, selectedParticipant]);
 
   if (!data && !isLoading) return null;
 
-  const selectedParticipantData = data?.participants.find(p => p.id === selectedParticipant);
-  const driverPrediction = data?.predictions.drivers.find(p => p.participantId === selectedParticipant);
-  const constructorPrediction = data?.predictions.constructors.find(p => p.participantId === selectedParticipant);
+  // Handle both data structures:
+  // - Static data: predictions.drivers and predictions.constructors (objects)
+  // - Current season: predictions is a flat array matching championshipType
+  const predictions = data?.predictions;
+  const isObjectStructure = predictions && typeof predictions === 'object' && 'drivers' in predictions;
+  
+  const selectedParticipantData = data?.participants?.find(p => p.id === selectedParticipant);
+  
+  let driverPrediction: DriverPrediction | undefined;
+  let constructorPrediction: ConstructorPrediction | undefined;
+  
+  if (isObjectStructure) {
+    // Static data structure
+    const predictionsObj = predictions as { drivers?: DriverPrediction[]; constructors?: ConstructorPrediction[] };
+    driverPrediction = predictionsObj.drivers?.find(p => p.participantId === selectedParticipant);
+    constructorPrediction = predictionsObj.constructors?.find(p => p.participantId === selectedParticipant);
+  } else {
+    // Current season structure - predictions is a flat array
+    const predictionsArray = predictions as (DriverPrediction | ConstructorPrediction)[] | undefined;
+    if (championshipType === 'drivers') {
+      driverPrediction = predictionsArray?.find(p => p.participantId === selectedParticipant) as DriverPrediction | undefined;
+    } else {
+      constructorPrediction = predictionsArray?.find(p => p.participantId === selectedParticipant) as ConstructorPrediction | undefined;
+    }
+  }
 
   // Table columns
   const columns = ['Position', 'Prediction', 'Current Standing', 'Points'];
@@ -83,14 +112,16 @@ export const PredictionsView: React.FC<PredictionsViewProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="mb-6 flex justify-center">
-        <ToggleGroup
-          label="Participant:"
-          options={data?.participants.map(p => ({ value: p.id, label: p.name })) || []}
-          value={selectedParticipant}
-          onChange={setSelectedParticipant}
-        />
-      </div>
+      {data?.participants && data.participants.length > 0 && (
+        <div className="mb-6 flex justify-center">
+          <ToggleGroup
+            label="Participant:"
+            options={data.participants.map(p => ({ value: p.id, label: p.name }))}
+            value={selectedParticipant}
+            onChange={setSelectedParticipant}
+          />
+        </div>
+      )}
       <ScoringHint scoringType={scoringType} />
       {/* Predictions Table */}
       <div className="bg-white border-2 border-navy rounded-xl p-6">

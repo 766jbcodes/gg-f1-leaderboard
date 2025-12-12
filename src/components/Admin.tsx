@@ -10,6 +10,8 @@ import {
   calculateConstructorCorrectGuesses
 } from '../utils/calculations';
 import type { Participant, DriverPrediction, ConstructorPrediction, DriverStanding, ConstructorStanding } from '../types';
+import { logger } from '../utils/logger';
+import { driverPredictions, constructorPredictions } from '../data/predictions';
 
 interface ExportData {
   participants: Participant[];
@@ -30,7 +32,8 @@ export function Admin() {
     refreshStandings 
   } = useStandings();
 
-  const { data: f1Data } = useF1Data('current', 'drivers');
+  const { data: f1DataDrivers } = useF1Data('current', 'drivers');
+  const { data: f1DataConstructors } = useF1Data('current', 'constructors');
 
   const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
 
@@ -60,18 +63,10 @@ export function Admin() {
   };
 
   const exportData = () => {
-    // For current season, f1Data.predictions has drivers and constructors properties
-    const driverPredictions = 'drivers' in (f1Data?.predictions || {}) 
-      ? (f1Data?.predictions as any)?.drivers || []
-      : [];
-    const constructorPredictions = 'constructors' in (f1Data?.predictions || {})
-      ? (f1Data?.predictions as any)?.constructors || []
-      : [];
-
     const data = {
-      participants: f1Data?.participants || [],
-      driverPredictions,
-      constructorPredictions,
+      participants: f1DataDrivers?.participants || [],
+      driverPredictions: f1DataDrivers?.predictions as DriverPrediction[] || driverPredictions,
+      constructorPredictions: f1DataConstructors?.predictions as ConstructorPrediction[] || constructorPredictions,
       currentDriverStandings,
       currentConstructorStandings,
       timestamp: new Date().toISOString(),
@@ -138,19 +133,15 @@ export function Admin() {
   };
 
   const calculateAllScores = () => {
-    if (!f1Data?.participants) return [];
+    const participants = f1DataDrivers?.participants || [];
+    if (!participants.length) return [];
     
-    // For current season, f1Data.predictions has drivers and constructors properties
-    const driverPredictions = 'drivers' in (f1Data?.predictions || {}) 
-      ? (f1Data?.predictions as any)?.drivers || []
-      : [];
-    const constructorPredictions = 'constructors' in (f1Data?.predictions || {})
-      ? (f1Data?.predictions as any)?.constructors || []
-      : [];
+    const driverPreds = (f1DataDrivers?.predictions as DriverPrediction[] | undefined) || driverPredictions;
+    const constructorPreds = (f1DataConstructors?.predictions as ConstructorPrediction[] | undefined) || constructorPredictions;
     
-    const scores = f1Data.participants.map(participant => {
-      const driverPrediction = driverPredictions.find((p: DriverPrediction) => p.participantId === participant.id);
-      const constructorPrediction = constructorPredictions.find((p: ConstructorPrediction) => p.participantId === participant.id);
+    const scores = participants.map(participant => {
+      const driverPrediction = driverPreds.find((p: DriverPrediction) => p.participantId === participant.id);
+      const constructorPrediction = constructorPreds.find((p: ConstructorPrediction) => p.participantId === participant.id);
 
       const driverPositionScore = driverPrediction 
         ? calculateDriverPredictionScore(driverPrediction, currentDriverStandings)
@@ -222,28 +213,27 @@ export function Admin() {
               Exit
             </button>
             <button
-              onClick={() => {
-                console.log('Testing API connectivity...');
-                fetch('https://api.jolpi.ca/ergast/f1/current/driverStandings.json')
-                  .then(response => {
-                    console.log('Primary API response:', response.status, response.statusText);
-                    return response.json();
-                  })
-                  .then(data => console.log('Primary API data received:', data.MRData?.StandingsTable?.season))
-                  .catch(error => {
-                    console.error('Primary API failed:', error);
-                    return fetch('https://ergast.com/api/f1/current/driverStandings.json');
-                  })
-                  .then(response => {
-                    if (response) {
-                      console.log('Fallback API response:', response.status, response.statusText);
-                      return response.json();
-                    }
-                  })
-                  .then(data => {
-                    if (data) console.log('Fallback API data received:', data.MRData?.StandingsTable?.season);
-                  })
-                  .catch(error => console.error('Both APIs failed:', error));
+              onClick={async () => {
+                try {
+                  logger.log('Testing API connectivity...');
+                  const response = await fetch('https://api.jolpi.ca/ergast/f1/current/driverStandings.json');
+                  logger.log('Primary API response:', response.status, response.statusText);
+                  const data = await response.json();
+                  logger.log('Primary API data received:', data.MRData?.StandingsTable?.season);
+                  alert(`API Test Successful!\nStatus: ${response.status}\nSeason: ${data.MRData?.StandingsTable?.season || 'Unknown'}`);
+                } catch (error) {
+                  logger.error('Primary API failed:', error);
+                  try {
+                    const fallbackResponse = await fetch('https://ergast.com/api/f1/current/driverStandings.json');
+                    logger.log('Fallback API response:', fallbackResponse.status, fallbackResponse.statusText);
+                    const fallbackData = await fallbackResponse.json();
+                    logger.log('Fallback API data received:', fallbackData.MRData?.StandingsTable?.season);
+                    alert(`Fallback API Test Successful!\nStatus: ${fallbackResponse.status}\nSeason: ${fallbackData.MRData?.StandingsTable?.season || 'Unknown'}`);
+                  } catch (fallbackError) {
+                    logger.error('Both APIs failed:', fallbackError);
+                    alert('API Test Failed: Both primary and fallback APIs are unavailable.');
+                  }
+                }
               }}
               className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
@@ -393,7 +383,7 @@ export function Admin() {
           <h3 className="text-lg font-bold text-navy mb-4">Data Summary</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-lg border border-lightgrey">
-              <div className="text-2xl font-bold text-navy">{f1Data?.participants?.length || 0}</div>
+              <div className="text-2xl font-bold text-navy">{f1DataDrivers?.participants?.length || 0}</div>
               <div className="text-sm text-navy">Participants</div>
             </div>
             <div className="bg-white p-4 rounded-lg border border-lightgrey">

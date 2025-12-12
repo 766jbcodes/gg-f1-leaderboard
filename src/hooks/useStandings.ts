@@ -75,7 +75,7 @@ export function useStandings(season: SeasonType = 'current') {
         cacheInfo: f1ApiService.getCacheInfo()
       }));
     } catch (error) {
-      console.error('Failed to fetch standings:', error);
+      // Error is handled in state, no need to log here as it's already logged in the service
       setState(prev => ({
         ...prev,
         isLoading: false,

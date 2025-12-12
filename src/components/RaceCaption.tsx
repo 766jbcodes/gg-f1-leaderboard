@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { f1ApiService } from '../services/f1Api';
+import { logger } from '../utils/logger';
 
 export const RaceCaption: React.FC = () => {
   const [raceInfo, setRaceInfo] = useState<{ name: string; type: 'race' | 'sprint' } | null>(null);
@@ -11,7 +12,7 @@ export const RaceCaption: React.FC = () => {
         const latestRace = await f1ApiService.getLatestRace();
         setRaceInfo(latestRace);
       } catch (error) {
-        console.error('Failed to fetch race info:', error);
+        logger.error('Failed to fetch race info:', error);
       } finally {
         setIsLoading(false);
       }

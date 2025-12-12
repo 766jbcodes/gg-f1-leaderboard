@@ -3,13 +3,15 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import MainLayout from './components/MainLayout';
 import { F1Dashboard } from './components/F1Dashboard';
 import { Admin } from './components/Admin';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
   const [showAdmin, setShowAdmin] = useState(false);
 
   return (
-    <Router>
-      <div className="min-h-screen bg-silver font-sans">
+    <ErrorBoundary>
+      <Router>
+        <div className="min-h-screen bg-silver font-sans">
         {/* Enhanced Visual Header */}
         <div className="relative overflow-hidden" style={{ minHeight: '880px' }}>
           {/* Background Image */}
@@ -65,8 +67,9 @@ function App() {
             } />
           </Routes>
         )}
-      </div>
-    </Router>
+        </div>
+      </Router>
+    </ErrorBoundary>
   );
 }
 
