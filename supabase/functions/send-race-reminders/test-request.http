@@ -1,0 +1,7 @@
+# Test: send-race-reminders Edge Function
+# Replace YOUR_ANON_KEY with your VITE_SUPABASE_ANON_KEY from .env
+# Function finds races 24–26h from now and emails all auth users (or returns "No races due for reminder").
+
+POST https://jfjvckiblzbsdlnburju.supabase.co/functions/v1/send-race-reminders
+Authorization: Bearer YOUR_ANON_KEY
+Content-Type: application/json
