@@ -12,22 +12,27 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
   onTabChange,
 }) => {
   return (
-    <div className="border-b border-navy">
-      <nav className="-mb-px flex space-x-8 justify-center" aria-label="Tabs">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={`${
-              activeTab === tab.id
-                ? 'border-red text-navy'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+    <div className="flex justify-center mb-8">
+      <div className="bg-secondary/50 p-1 rounded-full flex items-center shadow-inner">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={`
+                relative px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 ease-out
+                ${isActive 
+                  ? 'bg-white text-navy shadow-apple hover:shadow-apple-hover scale-105' 
+                  : 'text-muted-foreground hover:text-foreground hover:bg-white/50'
+                }
+              `}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
-}; 
+};

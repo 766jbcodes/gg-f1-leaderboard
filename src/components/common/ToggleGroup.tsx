@@ -19,29 +19,28 @@ export function ToggleGroup<T extends string | number>({
   className = '',
 }: ToggleGroupProps<T>) {
   return (
-    <div className={`flex flex-col gap-1 w-72 ${className}`}>
-      <span className="text-xs text-navy font-bold uppercase">{label}</span>
-      <div className="flex w-full">
-        {options.map((option, idx) => (
-          <button
-            key={option.value}
-            onClick={() => onChange(option.value)}
-            className={`flex-1 px-2 py-1 text-xs font-bold transition-colors border-2 border-navy ${
-              idx === 0 
-                ? 'rounded-l-md border-r-0' 
-                : idx === options.length - 1 
-                  ? 'rounded-r-md -ml-[2px]' 
-                  : 'border-r-0 -ml-[2px]'
-            } ${
-              value === option.value
-                ? 'bg-navy text-white z-10'
-                : 'bg-white text-navy hover:bg-silver'
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
+    <div className={`flex flex-col gap-2 items-center sm:items-start ${className}`}>
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground ml-1">{label}</span>
+      <div className="flex bg-secondary p-1 rounded-lg w-full max-w-sm relative">
+        {options.map((option) => {
+          const isActive = value === option.value;
+          return (
+            <button
+              key={option.value}
+              onClick={() => onChange(option.value)}
+              className={`
+                flex-1 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all duration-200
+                ${isActive 
+                  ? 'bg-white text-navy shadow-sm' 
+                  : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
+                }
+              `}
+            >
+              {option.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
-} 
+}

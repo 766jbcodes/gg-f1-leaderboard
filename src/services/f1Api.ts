@@ -19,7 +19,7 @@ export class F1ApiService {
   private static instance: F1ApiService;
   private memoryCache: Map<string, CacheEntry> = new Map();
   private lastRequestTime: number = 0;
-  private backgroundRefreshInterval: number | null = null;
+  private backgroundRefreshInterval: ReturnType<typeof setInterval> | null = null;
   private readonly CACHE_DURATION = config.cache.memoryCacheDuration;
   private readonly LOCAL_STORAGE_DURATION = config.cache.localStorageDuration;
 
@@ -67,7 +67,7 @@ export class F1ApiService {
     // Check memory cache first
     const memoryCached = this.memoryCache.get(cacheKey);
     if (memoryCached && (now - memoryCached.timestamp) < this.CACHE_DURATION) {
-      return memoryCached.data;
+      return memoryCached.data as T;
     }
 
     // Check localStorage cache
@@ -82,7 +82,7 @@ export class F1ApiService {
         this.refreshInBackground(url, cacheKey);
       }
       
-      return localCached.data;
+      return localCached.data as T;
     }
 
     // Fetch fresh data
@@ -107,11 +107,12 @@ export class F1ApiService {
           const cachedData = localCached || memoryCached;
           if (cachedData) {
             this.memoryCache.set(cacheKey, cachedData);
-            return cachedData.data;
+            return cachedData.data as T;
           }
         }
         
         if (!response.ok) {
+          logger.error(`HTTP error from ${tryUrl}: status ${response.status}`);
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         
@@ -145,7 +146,7 @@ export class F1ApiService {
           const fallbackData = localCached || memoryCached;
           if (fallbackData) {
             logger.log('Using cached data due to fetch error');
-            return fallbackData.data;
+            return fallbackData.data as T;
           }
           
           throw error;
@@ -155,6 +156,7 @@ export class F1ApiService {
     }
     
     // This should never be reached, but just in case
+    logger.error('All API endpoints failed for', cacheKey);
     throw new Error('All API endpoints failed');
   }
 
@@ -241,6 +243,7 @@ export class F1ApiService {
       
       const standingsList = response.MRData.StandingsTable.StandingsLists[0];
       if (!standingsList?.DriverStandings) {
+        logger.error('No driver standings data in API response');
         throw new Error('No driver standings data available');
       }
 
@@ -265,6 +268,7 @@ export class F1ApiService {
       
       const standingsList = response.MRData.StandingsTable.StandingsLists[0];
       if (!standingsList?.ConstructorStandings) {
+        logger.error('No constructor standings data in API response');
         throw new Error('No constructor standings data available');
       }
 

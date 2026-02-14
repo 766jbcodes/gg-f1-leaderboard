@@ -1,7 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStandings } from '../hooks/useStandings';
 import { useF1Data } from '../hooks/useF1Data';
+import { useAuth } from '../contexts/AuthContext';
+import { isAdminEmail } from '../config/env';
 import { currentDriverStandings, currentConstructorStandings } from '../data/currentStandings';
 import { 
   calculateDriverPredictionScore, 
@@ -30,6 +32,14 @@ interface AdminProps {
 
 export function Admin({ onExit }: AdminProps = {}) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user && !isAdminEmail(user.email)) {
+      onExit?.();
+    }
+  }, [user, onExit]);
+
   const { 
     isLoading, 
     error, 
@@ -217,7 +227,9 @@ export function Admin({ onExit }: AdminProps = {}) {
 
     const wins: Record<string, number> = {};
 
-    seasons.forEach(({ season, data }) => {
+    seasons.forEach(({ season, data: seasonData }) => {
+      const data = seasonData;
+      if (!data) return;
       categories.forEach(({ type, scoring }) => {
         // Skip if no predictions for this category
         if (type === 'drivers' && season === '2023' && data.predictions.drivers.length === 0) return;

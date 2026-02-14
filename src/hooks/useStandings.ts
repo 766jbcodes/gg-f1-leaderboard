@@ -3,6 +3,7 @@ import type { DriverStanding, ConstructorStanding, SeasonType } from '../types';
 import { f1ApiService } from '../services/f1Api';
 import { data2023 } from '../data/staticData/2023';
 import { data2024 } from '../data/staticData/2024';
+import { logger } from '../utils/logger';
 
 interface StandingsState {
   driverStandings: DriverStanding[];
@@ -75,7 +76,7 @@ export function useStandings(season: SeasonType = 'current') {
         cacheInfo: f1ApiService.getCacheInfo()
       }));
     } catch (error) {
-      // Error is handled in state, no need to log here as it's already logged in the service
+      logger.error('useStandings: fetch failed', error);
       setState(prev => ({
         ...prev,
         isLoading: false,

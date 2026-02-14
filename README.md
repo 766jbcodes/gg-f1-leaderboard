@@ -45,15 +45,27 @@ A Progressive Web App (PWA) for tracking Formula 1 predictions against current C
 npm run build
 ```
 
-## Project Structure
+## Project structure
 
 ```
 src/
-├── components/     # React components
-├── data/          # Hardcoded predictions and data
-├── types/         # TypeScript type definitions
-└── utils/         # Utility functions
+├── components/     # React components (common/, ui/)
+├── config/         # Configuration (env)
+├── contexts/       # React contexts (auth)
+├── data/           # Static data and historical seasons
+├── hooks/          # Custom React hooks
+├── services/       # F1 API and Supabase
+├── types/          # TypeScript types
+└── utils/          # Utilities (calculations, logger)
 ```
+
+## Documentation
+
+- **[User stories](docs/user-stories.md)** – Product user stories (completed and optional).
+- **[Race results automation](docs/race-results-automation.md)** – How race results are synced from Ergast.
+- **[Edge functions](docs/edge-functions.md)** – Supabase Edge Functions (ensure-race-results, fetch-race-results, send-race-reminders).
+
+Older planning and review docs are in `docs/archive/`.
 
 ## Development
 
@@ -64,30 +76,17 @@ src/
 
 ## Environment Variables
 
-Optional environment variables can be configured in a `.env.local` file:
+Set environment variables in a `.env.local` file (do not commit `.env` or `.env.local`). Copy `.env.example` and fill in values as needed.
 
-```env
-VITE_API_BASE_URL=https://api.jolpi.ca/ergast/f1
-VITE_FALLBACK_API_URL=https://ergast.com/api/f1
-```
+| Variable | Description |
+|----------|-------------|
+| `VITE_SUPABASE_URL` | Supabase project URL (required for auth and 2026 data) |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key (required for auth and 2026 data) |
+| `VITE_ADMIN_EMAILS` | Comma-separated emails that can access Admin (optional; empty = no gating) |
+| `VITE_API_BASE_URL` | F1 API base URL (optional; default: jolpi.ca proxy) |
+| `VITE_FALLBACK_API_URL` | Fallback F1 API URL (optional; default: ergast.com) |
 
-If not provided, the app will use sensible defaults.
-
-## Project Structure
-
-```
-src/
-├── components/     # React components
-│   ├── common/     # Shared/reusable components
-│   └── ...         # Feature components
-├── config/         # Configuration files
-├── data/           # Static data (predictions, standings)
-│   └── staticData/ # Historical season data
-├── hooks/          # Custom React hooks
-├── services/      # API services and data fetching
-├── types/          # TypeScript type definitions
-└── utils/          # Utility functions
-```
+If Supabase vars are not set, auth and 2026 features are disabled; the app still runs with defaults for other vars.
 
 ## Contributing
 

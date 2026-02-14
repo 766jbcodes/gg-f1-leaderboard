@@ -122,7 +122,7 @@ export const TabContent: React.FC<TabContentProps> = ({ tab, season, championshi
       case 'predictions': {
         return <PredictionsView season={season} championshipType={championshipType} scoringType={scoringType} />;
       }
-            case 'standings':
+      case 'standings': {
         if (championshipType === 'drivers') {
           driverData = (data?.standings || []).filter((s): s is DriverStanding => 'driver' in s).map((standing) => ({
             position: standing.position,
@@ -150,6 +150,7 @@ export const TabContent: React.FC<TabContentProps> = ({ tab, season, championshi
             <RaceCaption />
           </div>
         );
+      }
       default:
         return null;
     }

@@ -1,44 +1,23 @@
 /**
- * Centralised logging utility
- * 
- * In development, all logs are shown. In production:
- * - log() calls are suppressed
- * - warn() and error() calls are preserved for debugging
+ * Centralised logging utility.
+ * All levels log to console (useful for debugging this personal app).
  */
 
-const isDevelopment = import.meta.env.DEV;
-
 export const logger = {
-  /**
-   * Log informational messages (only in development)
-   */
   log: (...args: unknown[]): void => {
-    if (isDevelopment) {
-      console.log(...args);
-    }
+    console.log('[F1]', ...args);
   },
 
-  /**
-   * Log warning messages (always shown)
-   */
   warn: (...args: unknown[]): void => {
-    console.warn(...args);
+    console.warn('[F1]', ...args);
   },
 
-  /**
-   * Log error messages (always shown)
-   */
   error: (...args: unknown[]): void => {
-    console.error(...args);
+    console.error('[F1]', ...args);
   },
 
-  /**
-   * Log debug messages (only in development)
-   */
   debug: (...args: unknown[]): void => {
-    if (isDevelopment) {
-      console.debug(...args);
-    }
+    console.debug('[F1]', ...args);
   },
 };
 
