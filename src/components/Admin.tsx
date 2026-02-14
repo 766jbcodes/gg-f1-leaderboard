@@ -1,10 +1,12 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStandings } from '../hooks/useStandings';
 import { useF1Data } from '../hooks/useF1Data';
 import { useAuth } from '../contexts/AuthContext';
-import { isAdminEmail } from '../config/env';
+import { isAdminEmail, config } from '../config/env';
 import { currentDriverStandings, currentConstructorStandings } from '../data/currentStandings';
+import { f1ApiService } from '../services/f1Api';
+import { supabase } from '../lib/supabase';
 import { 
   calculateDriverPredictionScore, 
   calculateConstructorPredictionScore,
@@ -14,9 +16,6 @@ import {
 import type { Participant, DriverPrediction, ConstructorPrediction, DriverStanding, ConstructorStanding, SeasonType } from '../types';
 import { logger } from '../utils/logger';
 import { driverPredictions, constructorPredictions } from '../data/predictions';
-import { data2023 } from '../data/staticData/2023';
-import { data2024 } from '../data/staticData/2024';
-import { data2025 } from '../data/staticData/2025';
 
 interface ExportData {
   participants: Participant[];
@@ -51,6 +50,12 @@ export function Admin({ onExit }: AdminProps = {}) {
 
   const { data: f1DataDrivers } = useF1Data('current', 'drivers');
   const { data: f1DataConstructors } = useF1Data('current', 'constructors');
+  const { data: f1_2023_d } = useF1Data('2023', 'drivers');
+  const { data: f1_2023_c } = useF1Data('2023', 'constructors');
+  const { data: f1_2024_d } = useF1Data('2024', 'drivers');
+  const { data: f1_2024_c } = useF1Data('2024', 'constructors');
+  const { data: f1_2025_d } = useF1Data('2025', 'drivers');
+  const { data: f1_2025_c } = useF1Data('2025', 'constructors');
 
   const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
 
@@ -191,32 +196,23 @@ export function Admin({ onExit }: AdminProps = {}) {
 
   // Calculate wins across all seasons and categories
   const winCounts = useMemo(() => {
-    console.log('=== Calculating win counts ===');
-    
-    // Build current season data from fetched data
-    // Note: Since 2025 is the current year, both '2025' and 'current' use the same API data
-    // We'll use the fetched data for '2025' to avoid double-counting
-    const currentData = f1DataDrivers && f1DataConstructors ? {
-      participants: f1DataDrivers.participants,
-      predictions: {
-        drivers: f1DataDrivers.predictions,
-        constructors: f1DataConstructors.predictions,
-      },
-      standings: {
-        drivers: f1DataDrivers.standings,
-        constructors: f1DataConstructors.standings,
-      },
-    } : null;
-    
-    // Use fetched API data for 2025 (same as current), static data for past seasons
-    const seasons: Array<{ season: SeasonType; data: typeof data2023 | null }> = [
-      { season: '2023', data: data2023 },
-      { season: '2024', data: data2024 },
-      { season: '2025', data: currentData || data2025 }, // Use API data if available, fallback to static
-      // Skip 'current' since it's the same as '2025' - we don't want to double-count
-    ].filter(({ data }) => data !== null) as Array<{ season: SeasonType; data: typeof data2023 }>;
-    
-    console.log('Seasons data:', seasons.map(s => ({ season: s.season, hasData: !!s.data })));
+    const buildSeasonData = (
+      d: { participants?: { id: string; name: string }[]; predictions?: unknown; standings?: unknown } | undefined,
+      c: { predictions?: unknown; standings?: unknown } | undefined
+    ) =>
+      d && c && d.participants
+        ? {
+            participants: d.participants,
+            predictions: { drivers: d.predictions, constructors: c.predictions },
+            standings: { drivers: d.standings, constructors: c.standings },
+          }
+        : null;
+
+    const seasons: Array<{ season: SeasonType; data: ReturnType<typeof buildSeasonData> }> = [
+      { season: '2023', data: buildSeasonData(f1_2023_d, f1_2023_c) },
+      { season: '2024', data: buildSeasonData(f1_2024_d, f1_2024_c) },
+      { season: '2025', data: buildSeasonData(f1_2025_d, f1_2025_c) ?? buildSeasonData(f1DataDrivers, f1DataConstructors) },
+    ].filter(({ data }) => data !== null) as Array<{ season: SeasonType; data: NonNullable<ReturnType<typeof buildSeasonData>> }>;
 
     const categories = [
       { type: 'drivers' as const, scoring: 'delta' as const },
@@ -232,8 +228,9 @@ export function Admin({ onExit }: AdminProps = {}) {
       if (!data) return;
       categories.forEach(({ type, scoring }) => {
         // Skip if no predictions for this category
-        if (type === 'drivers' && season === '2023' && data.predictions.drivers.length === 0) return;
-        if (type === 'constructors' && season === '2024' && data.predictions.constructors.length === 0) return;
+        const preds = data.predictions as { drivers?: unknown[]; constructors?: unknown[] };
+        if (type === 'drivers' && season === '2023' && (preds.drivers?.length ?? 0) === 0) return;
+        if (type === 'constructors' && season === '2024' && (preds.constructors?.length ?? 0) === 0) return;
 
         // Access predictions correctly - handle both object structure (2025) and array structure
         const standings = data.standings[type];
@@ -279,8 +276,6 @@ export function Admin({ onExit }: AdminProps = {}) {
                 ? calculateConstructorPredictionScore(prediction as ConstructorPrediction, standings as ConstructorStanding[])
                 : calculateConstructorCorrectGuesses(prediction as ConstructorPrediction, standings as ConstructorStanding[]);
             }
-          } else {
-            console.log(`No prediction found for ${participant.name} in ${season} ${type}`);
           }
 
           return { participantId: participant.id, participantName: participant.name, score };
@@ -301,30 +296,77 @@ export function Admin({ onExit }: AdminProps = {}) {
 
         // Count all winners (handle ties)
         const winners = sortedScores.filter(s => s.score === winningScore);
-        // Debug: Log all scores for this category
-        console.log(`${season} ${type} ${scoring} scores:`, sortedScores.map(s => `${s.participantName}: ${s.score}`));
-        console.log(`Winning score: ${winningScore}, Winners for ${season} ${type} ${scoring}:`, winners.map(w => `${w.participantName} (${w.score})`));
-        console.log(`All scores:`, JSON.stringify(sortedScores, null, 2));
         winners.forEach(winner => {
           const currentWins = wins[winner.participantName] || 0;
           wins[winner.participantName] = currentWins + 1;
-          console.log(`Adding win to ${winner.participantName}: ${currentWins} -> ${currentWins + 1}`);
         });
       });
     });
 
-    console.log('Final wins object:', wins);
     return wins;
-  }, [f1DataDrivers, f1DataConstructors]);
+  }, [f1DataDrivers, f1DataConstructors, f1_2023_d, f1_2023_c, f1_2024_d, f1_2024_c, f1_2025_d, f1_2025_c]);
 
   // Convert wins to sorted array
   const winCountsArray = useMemo(() => {
-    const array = Object.entries(winCounts)
+    return Object.entries(winCounts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
-    console.log('Win counts array:', array);
-    return array;
   }, [winCounts]);
+
+  // Activity log (client-side, last N events)
+  const ACTIVITY_LOG_MAX = 50;
+  const [activityLog, setActivityLog] = useState<Array<{ at: string; message: string }>>([]);
+  const appendActivity = useCallback((message: string) => {
+    setActivityLog(prev => [
+      { at: new Date().toLocaleTimeString(), message },
+      ...prev.slice(0, ACTIVITY_LOG_MAX - 1),
+    ]);
+  }, []);
+
+  // Race results sync status
+  const [syncStatus, setSyncStatus] = useState<{
+    lastStartedAt: string | null;
+    lastCompletedAt: string | null;
+    raceResultsCount: number | null;
+  } | null>(null);
+  const [syncStatusLoading, setSyncStatusLoading] = useState(false);
+  const [syncTriggerLoading, setSyncTriggerLoading] = useState(false);
+  const fetchSyncStatus = useCallback(async () => {
+    setSyncStatusLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-sync-status');
+      if (error) throw error;
+      if (data && 'error' in data) throw new Error(data.error as string);
+      setSyncStatus(data as { lastStartedAt: string | null; lastCompletedAt: string | null; raceResultsCount: number | null });
+    } catch (e) {
+      logger.error('admin-sync-status failed:', e);
+      setSyncStatus(null);
+    } finally {
+      setSyncStatusLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    fetchSyncStatus();
+  }, [fetchSyncStatus]);
+
+  const triggerRaceResultsSync = useCallback(async () => {
+    if (syncTriggerLoading) return;
+    setSyncTriggerLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ensure-race-results');
+      if (error) throw error;
+      appendActivity(`Race results sync: ${data?.status ?? 'done'}${data?.inserted != null ? ` (${data.inserted} inserted)` : ''}`);
+      await fetchSyncStatus();
+    } catch (e) {
+      logger.error('ensure-race-results failed:', e);
+      appendActivity('Race results sync failed');
+    } finally {
+      setSyncTriggerLoading(false);
+    }
+  }, [syncTriggerLoading, appendActivity, fetchSyncStatus]);
+
+  type AdminTab = 'overview' | 'data' | 'leaderboard';
+  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -336,7 +378,10 @@ export function Admin({ onExit }: AdminProps = {}) {
           <div className="flex items-center space-x-4">
             {getStatusBadge()}
             <button
-              onClick={refreshStandings}
+              onClick={() => {
+                appendActivity('Refresh standings clicked');
+                refreshStandings();
+              }}
               disabled={isLoading}
               className="inline-flex items-center px-4 py-2 border-2 border-red bg-red text-white font-bold uppercase rounded shadow hover:bg-navy hover:border-navy transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -374,23 +419,25 @@ export function Admin({ onExit }: AdminProps = {}) {
             </button>
             <button
               onClick={async () => {
+                const primaryUrl = `${config.api.baseUrl}/current/driverStandings.json`;
+                const fallbackUrl = `${config.api.fallbackUrl}/current/driverStandings.json`;
                 try {
-                  logger.log('Testing API connectivity...');
-                  const response = await fetch('https://api.jolpi.ca/ergast/f1/current/driverStandings.json');
-                  logger.log('Primary API response:', response.status, response.statusText);
+                  const response = await fetch(primaryUrl);
                   const data = await response.json();
-                  logger.log('Primary API data received:', data.MRData?.StandingsTable?.season);
-                  alert(`API Test Successful!\nStatus: ${response.status}\nSeason: ${data.MRData?.StandingsTable?.season || 'Unknown'}`);
+                  const season = data.MRData?.StandingsTable?.season ?? 'Unknown';
+                  appendActivity(`API test: primary OK (${response.status}, season ${season})`);
+                  alert(`API Test Successful!\nStatus: ${response.status}\nSeason: ${season}`);
                 } catch (error) {
                   logger.error('Primary API failed:', error);
                   try {
-                    const fallbackResponse = await fetch('https://ergast.com/api/f1/current/driverStandings.json');
-                    logger.log('Fallback API response:', fallbackResponse.status, fallbackResponse.statusText);
+                    const fallbackResponse = await fetch(fallbackUrl);
                     const fallbackData = await fallbackResponse.json();
-                    logger.log('Fallback API data received:', fallbackData.MRData?.StandingsTable?.season);
-                    alert(`Fallback API Test Successful!\nStatus: ${fallbackResponse.status}\nSeason: ${fallbackData.MRData?.StandingsTable?.season || 'Unknown'}`);
+                    const season = fallbackData.MRData?.StandingsTable?.season ?? 'Unknown';
+                    appendActivity(`API test: fallback OK (${fallbackResponse.status}, season ${season})`);
+                    alert(`Fallback API Test Successful!\nStatus: ${fallbackResponse.status}\nSeason: ${season}`);
                   } catch (fallbackError) {
                     logger.error('Both APIs failed:', fallbackError);
+                    appendActivity('API test: both failed');
                     alert('API Test Failed: Both primary and fallback APIs are unavailable.');
                   }
                 }
@@ -399,7 +446,37 @@ export function Admin({ onExit }: AdminProps = {}) {
             >
               Test API
             </button>
+            <button
+              onClick={() => {
+                if (window.confirm('Clear all standings cache (memory + localStorage) and refresh?')) {
+                  f1ApiService.clearCache();
+                  appendActivity('Cache cleared, refreshing');
+                  refreshStandings();
+                }
+              }}
+              disabled={isLoading}
+              className="inline-flex items-center px-3 py-2 border-2 border-navy/50 text-navy font-bold uppercase rounded shadow hover:bg-navy hover:text-white transition disabled:opacity-50"
+            >
+              Clear cache
+            </button>
           </div>
+        </div>
+
+        {/* Tab navigation */}
+        <div className="flex gap-2 mb-6 border-b-2 border-navy/20 pb-2">
+          {(['overview', 'data', 'leaderboard'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 font-bold uppercase rounded transition ${
+                activeTab === tab
+                  ? 'bg-navy text-white'
+                  : 'bg-silver text-navy hover:bg-navy/10'
+              }`}
+            >
+              {tab === 'overview' ? 'Overview' : tab === 'data' ? 'Data & export' : 'Leaderboard'}
+            </button>
+          ))}
         </div>
 
         {error && (
@@ -429,6 +506,8 @@ export function Admin({ onExit }: AdminProps = {}) {
           </div>
         )}
 
+        {activeTab === 'overview' && (
+          <>
         {/* Cache Info */}
         <div className="mb-8 bg-silver border-2 border-lightgrey rounded-xl p-4">
           <div className="flex items-center justify-between">
@@ -447,6 +526,70 @@ export function Admin({ onExit }: AdminProps = {}) {
               Background refresh: Every 5 minutes
             </div>
           </div>
+        </div>
+
+        {/* Race results sync */}
+        <div className="mb-8 bg-white border-2 border-navy rounded-xl p-4">
+          <h3 className="text-xl font-extrabold uppercase tracking-widest text-navy mb-4">
+            Race results sync
+          </h3>
+          {syncStatusLoading ? (
+            <p className="text-sm text-navy">Loading…</p>
+          ) : syncStatus ? (
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-bold text-navy">Last started:</span>
+                <span className="text-sm text-navy">
+                  {syncStatus.lastStartedAt ? new Date(syncStatus.lastStartedAt).toLocaleString() : 'Never'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-bold text-navy">Last completed:</span>
+                <span className="text-sm text-navy">
+                  {syncStatus.lastCompletedAt ? new Date(syncStatus.lastCompletedAt).toLocaleString() : 'Never'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-bold text-navy">Races with results:</span>
+                <span className="text-sm text-navy">{syncStatus.raceResultsCount ?? '—'}</span>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={fetchSyncStatus}
+                  disabled={syncStatusLoading}
+                  className="px-3 py-1.5 text-sm font-bold border border-navy text-navy rounded hover:bg-navy hover:text-white disabled:opacity-50"
+                >
+                  Refresh status
+                </button>
+                <button
+                  onClick={triggerRaceResultsSync}
+                  disabled={syncTriggerLoading}
+                  className="px-3 py-1.5 text-sm font-bold border border-red text-red rounded hover:bg-red hover:text-white disabled:opacity-50"
+                >
+                  {syncTriggerLoading ? 'Running…' : 'Trigger sync'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-navy/70">Sync status unavailable (check Supabase).</p>
+          )}
+        </div>
+
+        {/* Activity log */}
+        <div className="mb-8 bg-silver border-2 border-lightgrey rounded-xl p-4">
+          <h3 className="text-lg font-bold text-navy mb-2">Activity log</h3>
+          <details className="text-sm">
+            <summary className="cursor-pointer font-bold text-navy">Recent admin actions</summary>
+            <ul className="mt-2 space-y-1 max-h-40 overflow-y-auto font-mono text-xs text-navy">
+              {activityLog.length === 0 ? (
+                <li>No activity yet</li>
+              ) : (
+                activityLog.map((entry, i) => (
+                  <li key={i}><span className="text-navy/70">{entry.at}</span> {entry.message}</li>
+                ))
+              )}
+            </ul>
+          </details>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -516,7 +659,11 @@ export function Admin({ onExit }: AdminProps = {}) {
             {!isLive && lastUpdated && ' (Cached data)'}
           </p>
         </div>
+          </>
+        )}
 
+        {activeTab === 'data' && (
+          <>
         {/* Data Export Section */}
         <div className="mt-8">
           <h3 className="text-lg font-bold text-navy mb-4">Data Export</h3>
@@ -560,7 +707,11 @@ export function Admin({ onExit }: AdminProps = {}) {
             </div>
           </div>
         </div>
+          </>
+        )}
 
+        {activeTab === 'leaderboard' && (
+          <>
         {/* Win Counts Across All Seasons */}
         <div className="mt-8">
           <h3 className="text-lg font-bold text-navy mb-4">All-Time Wins (Across All Seasons & Categories)</h3>
@@ -616,6 +767,8 @@ export function Admin({ onExit }: AdminProps = {}) {
             </table>
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

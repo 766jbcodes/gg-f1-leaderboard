@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "supabase": "supabase",
-    "deploy:functions": "supabase functions deploy ensure-race-results && supabase functions deploy fetch-race-results && supabase functions deploy send-race-reminders"
+    "deploy:functions": "supabase functions deploy ensure-race-results && supabase functions deploy fetch-race-results && supabase functions deploy send-race-reminders",
+    "migrate:predictions": "npx tsx scripts/migrate-past-season-predictions.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",
@@ -41,6 +42,8 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.34.1",
     "vite": "^7.0.0",
-    "supabase": "^2.0.0"
+    "supabase": "^2.0.0",
+    "tsx": "^4.19.0",
+    "dotenv": "^16.4.5"
   }
 }

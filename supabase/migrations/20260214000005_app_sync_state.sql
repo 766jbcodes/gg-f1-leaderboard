@@ -14,6 +14,7 @@ on conflict (key) do nothing;
 alter table public.app_sync_state enable row level security;
 
 -- No policies: anon/authenticated see no rows. Service role bypasses RLS.
+drop policy if exists "No public access" on public.app_sync_state;
 create policy "No public access"
   on public.app_sync_state for all
   using (false);

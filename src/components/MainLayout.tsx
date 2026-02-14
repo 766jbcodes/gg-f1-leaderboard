@@ -18,7 +18,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           <Link to="/season/2024" className="hover:text-foreground transition-colors">2024 Season</Link>
           <Link to="/season/2025" className="hover:text-foreground transition-colors">2025 Season</Link>
         </div>
-        <p>© {new Date().getFullYear()} Gunther's Groupies. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} aufintools. All rights reserved.</p>
       </footer>
     </div>
   );

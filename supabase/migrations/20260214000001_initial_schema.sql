@@ -51,18 +51,24 @@ alter table public.races enable row level security;
 alter table public.weekly_predictions enable row level security;
 
 -- Profiles: users can read/update own row
+drop policy if exists "Users can view own profile" on public.profiles;
 create policy "Users can view own profile" on public.profiles for select using (auth.uid() = id);
+drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile" on public.profiles for update using (auth.uid() = id);
 -- Insert on signup via trigger (see below)
+drop policy if exists "Users can insert own profile" on public.profiles;
 create policy "Users can insert own profile" on public.profiles for insert with check (auth.uid() = id);
 
 -- Season predictions: own rows only
+drop policy if exists "Users can manage own season_predictions" on public.season_predictions;
 create policy "Users can manage own season_predictions" on public.season_predictions for all using (auth.uid() = user_id);
 
 -- Races: readable by all authenticated
+drop policy if exists "Authenticated can read races" on public.races;
 create policy "Authenticated can read races" on public.races for select to authenticated using (true);
 
 -- Weekly predictions: own rows only
+drop policy if exists "Users can manage own weekly_predictions" on public.weekly_predictions;
 create policy "Users can manage own weekly_predictions" on public.weekly_predictions for all using (auth.uid() = user_id);
 
 -- Trigger: create profile on signup

@@ -135,6 +135,28 @@ export interface Database {
           updated_at?: string;
         };
       };
+      season_standings: {
+        Row: {
+          season: number;
+          championship_type: ChampionshipType;
+          standings: unknown;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          season: number;
+          championship_type: ChampionshipType;
+          standings: unknown;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          season?: number;
+          championship_type?: ChampionshipType;
+          standings?: unknown;
+          updated_at?: string;
+        };
+      };
     };
   };
 }

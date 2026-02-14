@@ -11,6 +11,7 @@ create table if not exists public.race_results (
 alter table public.race_results enable row level security;
 
 -- Authenticated users can read (for leaderboard).
+drop policy if exists "Authenticated can read race_results" on public.race_results;
 create policy "Authenticated can read race_results" on public.race_results for select to authenticated using (true);
 -- Only service role or future admin can insert/update (e.g. via Edge Function or backend).
 -- No insert/update policy for authenticated = only service role can write.

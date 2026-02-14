@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import MainLayout from './components/MainLayout';
 import { Header } from './components/Header';
 import { F1Dashboard } from './components/F1Dashboard';
-import { Admin } from './components/Admin';
 import { ErrorBoundary } from './components/ErrorBoundary';
+
+const Admin = lazy(() => import('./components/Admin').then(m => ({ default: m.Admin })));
 import { Login } from './components/Login';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PointsFinishPage } from './components/PointsFinishPage';
@@ -90,7 +91,9 @@ function AppContent() {
 
         <EnsureRaceResultsSync />
         {showAdmin ? (
-          <Admin onExit={() => setShowAdmin(false)} />
+          <Suspense fallback={<div className="max-w-6xl mx-auto px-4 py-8 text-center text-navy font-bold">Loading admin…</div>}>
+            <Admin onExit={() => setShowAdmin(false)} />
+          </Suspense>
         ) : (
           <Routes>
           <Route path="/login" element={<Login />} />

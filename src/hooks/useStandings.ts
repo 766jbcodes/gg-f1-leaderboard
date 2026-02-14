@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { DriverStanding, ConstructorStanding, SeasonType } from '../types';
 import { f1ApiService } from '../services/f1Api';
-import { data2023 } from '../data/staticData/2023';
-import { data2024 } from '../data/staticData/2024';
+import { fetchSeasonStandingsBoth, isPastSeason } from '../services/supabasePredictions';
 import { logger } from '../utils/logger';
 
 interface StandingsState {
@@ -27,29 +26,29 @@ export function useStandings(season: SeasonType = 'current') {
   });
 
   const fetchStandings = useCallback(async (forceRefresh = false) => {
-    if (season === '2023') {
-      setState(prev => ({
-        ...prev,
-        driverStandings: data2023.standings.drivers,
-        constructorStandings: data2023.standings.constructors,
-        isLoading: false,
-        error: null,
-        lastUpdated: null,
-        isLive: false,
-        cacheInfo: { memoryEntries: 0, localStorageSize: 0 }
-      }));
-      return;
-    } else if (season === '2024') {
-      setState(prev => ({
-        ...prev,
-        driverStandings: data2024.standings.drivers,
-        constructorStandings: data2024.standings.constructors,
-        isLoading: false,
-        error: null,
-        lastUpdated: null,
-        isLive: false,
-        cacheInfo: { memoryEntries: 0, localStorageSize: 0 }
-      }));
+    if (isPastSeason(season)) {
+      setState((prev) => ({ ...prev, isLoading: true, error: null }));
+      try {
+        const { drivers, constructors } = await fetchSeasonStandingsBoth(season);
+        setState((prev) => ({
+          ...prev,
+          driverStandings: drivers,
+          constructorStandings: constructors,
+          isLoading: false,
+          error: null,
+          lastUpdated: null,
+          isLive: false,
+          cacheInfo: { memoryEntries: 0, localStorageSize: 0 },
+        }));
+      } catch (e) {
+        logger.error('useStandings: fetch past season failed', e);
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: 'Failed to load standings.',
+          isLive: false,
+        }));
+      }
       return;
     }
 
