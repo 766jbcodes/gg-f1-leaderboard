@@ -5,6 +5,7 @@ import { ChampionshipToggle } from './ChampionshipToggle';
 import { TabNavigation } from './common/TabNavigation';
 import { TabContent } from './TabContent';
 import { ScoringToggle, type ScoringType } from './ScoringToggle';
+import { SeasonNotStartedNotice } from './SeasonNotStartedNotice';
 import { useF1AppData } from '../hooks/useF1AppData';
 
 const TABS = [
@@ -47,6 +48,12 @@ export const F1Dashboard: React.FC<F1DashboardProps> = ({ season }) => {
           <ScoringToggle type={scoringType} onChange={setScoringType} />
         </div>
       </div>
+
+      {season === 'current' && appData?.data && !appData.isLoading && !(appData.data.standings?.length) && (
+        <div className="mb-6 px-2 sm:px-4">
+          <SeasonNotStartedNotice />
+        </div>
+      )}
 
       <TabNavigation
         tabs={TABS}

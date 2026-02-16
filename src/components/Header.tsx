@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useCurrentUserProfile } from '../hooks/useCurrentUserProfile';
 import { isAdminEmail } from '../config/env';
 
 interface HeaderProps {
@@ -28,7 +29,9 @@ export const Header: React.FC<HeaderProps> = ({ showAdmin, setShowAdmin }) => {
     navigate('/');
   };
 
-  const displayName = user?.user_metadata?.display_name ?? user?.email ?? '';
+  const { displayName: profileDisplayName } = useCurrentUserProfile(user?.id);
+  const displayName =
+    profileDisplayName ?? user?.user_metadata?.display_name ?? user?.email ?? '';
 
   const isActive = (path: string) => location.pathname === path;
 

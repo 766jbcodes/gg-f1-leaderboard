@@ -11,6 +11,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { PointsFinishPage } from './components/PointsFinishPage';
 import { SetPredictions2026Page } from './components/SetPredictions2026Page';
 import { EnsureRaceResultsSync } from './components/EnsureRaceResultsSync';
+import { OnboardingChecklistGate } from './components/OnboardingChecklistGate';
 
 // Component to handle Hero visibility based on route
 const HeroSection = () => {
@@ -90,6 +91,7 @@ function AppContent() {
       {!showAdmin && <HeroSection />}
 
         <EnsureRaceResultsSync />
+        <OnboardingChecklistGate />
         {showAdmin ? (
           <Suspense fallback={<div className="max-w-6xl mx-auto px-4 py-8 text-center text-navy font-bold">Loading admin…</div>}>
             <Admin onExit={() => setShowAdmin(false)} />

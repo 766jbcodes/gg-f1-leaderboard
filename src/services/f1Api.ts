@@ -242,9 +242,9 @@ export class F1ApiService {
       );
       
       const standingsList = response.MRData.StandingsTable.StandingsLists[0];
-      if (!standingsList?.DriverStandings) {
-        logger.error('No driver standings data in API response');
-        throw new Error('No driver standings data available');
+      if (!standingsList?.DriverStandings?.length) {
+        logger.log('[F1] No driver standings yet (season may not have started)');
+        return [];
       }
 
       return standingsList.DriverStandings.map(standing => ({
@@ -267,9 +267,9 @@ export class F1ApiService {
       );
       
       const standingsList = response.MRData.StandingsTable.StandingsLists[0];
-      if (!standingsList?.ConstructorStandings) {
-        logger.error('No constructor standings data in API response');
-        throw new Error('No constructor standings data available');
+      if (!standingsList?.ConstructorStandings?.length) {
+        logger.log('[F1] No constructor standings yet (season may not have started)');
+        return [];
       }
 
       return standingsList.ConstructorStandings.map(standing => ({

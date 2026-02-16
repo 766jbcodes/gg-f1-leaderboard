@@ -6,6 +6,7 @@ import { DataTable } from './common/DataTable';
 import { PredictionsView } from './PredictionsView';
 import { ScoringHint } from './ScoringHint';
 import { RaceCaption } from './RaceCaption';
+import { SeasonNotStartedNotice } from './SeasonNotStartedNotice';
 import { 
   calculateDriverPredictionScore, 
   calculateDriverCorrectGuesses,
@@ -108,6 +109,11 @@ export const TabContent: React.FC<TabContentProps> = ({ tab, season, championshi
         return (
           <div>
             <ScoringHint scoringType={scoringType} />
+            {season === 'current' && !(data.standings?.length) && (
+              <div className="mb-4">
+                <SeasonNotStartedNotice compact />
+              </div>
+            )}
             <DataTable 
               columns={['Position', 'Name', 'Score']} 
               data={scoresWithPosition} 
@@ -123,6 +129,7 @@ export const TabContent: React.FC<TabContentProps> = ({ tab, season, championshi
         return <PredictionsView season={season} championshipType={championshipType} scoringType={scoringType} />;
       }
       case 'standings': {
+        const standingsEmpty = !(data?.standings?.length);
         if (championshipType === 'drivers') {
           driverData = (data?.standings || []).filter((s): s is DriverStanding => 'driver' in s).map((standing) => ({
             position: standing.position,
@@ -133,6 +140,11 @@ export const TabContent: React.FC<TabContentProps> = ({ tab, season, championshi
           return (
             <div>
               <ScoringHint scoringType={scoringType} />
+              {standingsEmpty && season === 'current' && (
+                <div className="mb-4">
+                  <SeasonNotStartedNotice compact />
+                </div>
+              )}
               <DataTable columns={['Position', 'Driver', 'Constructor', 'Points']} data={driverData} isLoading={isLoading} error={error?.message} />
               <RaceCaption />
             </div>
@@ -146,6 +158,11 @@ export const TabContent: React.FC<TabContentProps> = ({ tab, season, championshi
         return (
           <div>
             <ScoringHint scoringType={scoringType} />
+            {standingsEmpty && season === 'current' && (
+              <div className="mb-4">
+                <SeasonNotStartedNotice compact />
+              </div>
+            )}
             <DataTable columns={['Position', 'Constructor', 'Points']} data={constructorData} isLoading={isLoading} error={error?.message} />
             <RaceCaption />
           </div>

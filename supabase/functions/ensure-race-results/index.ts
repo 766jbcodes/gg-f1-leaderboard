@@ -9,6 +9,20 @@ const DEFAULT_ERGAST = 'https://ergast.com/api/f1';
 const SYNC_KEY = 'race_results_backfill';
 const IN_PROGRESS_WINDOW_MS = 2 * 60 * 1000; // 2 minutes
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+  'Access-Control-Max-Age': '86400',
+};
+
+function jsonResponse(body: object, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+  });
+}
+
 interface ErgastResult {
   position: string;
   Driver: { familyName: string; givenName: string };
@@ -23,6 +37,10 @@ interface ErgastResponse {
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -44,10 +62,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         ? new Date(syncRow.last_completed_at).getTime()
         : 0;
       if (now.getTime() - started < IN_PROGRESS_WINDOW_MS && completed <= started) {
-        return new Response(
-          JSON.stringify({ status: 'skipped', reason: 'sync_in_progress' }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } }
-        );
+        return jsonResponse({ status: 'skipped', reason: 'sync_in_progress' }, 200);
       }
     }
 
@@ -58,10 +73,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .order('race_start_utc', { ascending: false });
 
     if (racesError) {
-      return new Response(
-        JSON.stringify({ error: racesError.message }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ error: racesError.message }, 500);
     }
 
     const { data: existing } = await supabase
@@ -74,10 +86,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     );
 
     if (toFetch.length === 0) {
-      return new Response(
-        JSON.stringify({ status: 'ok', reason: 'up_to_date', inserted: 0 }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ status: 'ok', reason: 'up_to_date', inserted: 0 }, 200);
     }
 
     await supabase.from('app_sync_state').upsert(
@@ -126,19 +135,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
       })
       .eq('key', SYNC_KEY);
 
-    return new Response(
-      JSON.stringify({
-        status: 'ok',
-        reason: 'backfill_done',
-        inserted: inserted.length,
-        races: inserted,
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({
+      status: 'ok',
+      reason: 'backfill_done',
+      inserted: inserted.length,
+      races: inserted,
+    }, 200);
   } catch (err) {
-    return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : String(err) }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    return jsonResponse(
+      { error: err instanceof Error ? err.message : String(err) },
+      500
     );
   }
 });
