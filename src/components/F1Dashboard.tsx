@@ -29,7 +29,7 @@ export const F1Dashboard: React.FC<F1DashboardProps> = ({ season }) => {
 
   return (
     <div className="pb-12 max-w-7xl mx-auto">
-      {season === '2026' && (
+      {(season === '2026' || season === 'current') && (
         <div className="mb-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
           <Link
             to="/season/2026/predictions"
