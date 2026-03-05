@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useOnboardingChecklist } from '../hooks/useOnboardingChecklist';
 import { OnboardingChecklistModal, getOnboardingChecklistDismissed } from './OnboardingChecklistModal';
@@ -9,7 +9,7 @@ import { OnboardingChecklistModal, getOnboardingChecklistDismissed } from './Onb
  */
 export function OnboardingChecklistGate() {
   const { user } = useAuth();
-  const { checklist, isLoading, hasIncompleteTasks } = useOnboardingChecklist(user?.id ?? undefined);
+  const { checklist, hasIncompleteTasks } = useOnboardingChecklist(user?.id ?? undefined);
   const [dismissedThisMount, setDismissedThisMount] = useState(false);
 
   const alreadyDismissedSession = getOnboardingChecklistDismissed();
