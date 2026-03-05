@@ -12,18 +12,12 @@ function normalizeDriver(name: string): string {
   return map[name] || name;
 }
 
-// Constructor name normalization for flexible matching
+// Constructor name normalization: maps prediction-stored names to Ergast API names
 function normalizeConstructor(name: string): string {
   const map: Record<string, string> = {
+    'Red Bull Racing': 'Red Bull',
     'Haas': 'Haas F1 Team',
     'Alpine': 'Alpine F1 Team',
-    'RB F1 Team': 'RB F1 Team',
-    'Racing Bulls': 'RB F1 Team',
-    'Stake F1 Team': 'Sauber',
-    'Sauber': 'Sauber',
-    'Red Bull Racing': 'Red Bull', // Map "Red Bull Racing" to "Red Bull" for API matching
-    'Red Bull': 'Red Bull',
-    // Add more mappings as needed
   };
   return map[name] || name;
 }
