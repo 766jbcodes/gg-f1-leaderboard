@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { SeasonType, ChampionshipType } from '../types/common';
 import type { ScoringType } from './ScoringToggle';
 import { useF1Data } from '../hooks/useF1Data';
+import { useRound1Race } from '../hooks/useRaces';
 import {
   getDriverPredictionDetails,
   getConstructorPredictionDetails
@@ -22,6 +23,14 @@ export const PredictionsView: React.FC<PredictionsViewProps> = ({
   scoringType
 }) => {
   const { data, isLoading, error } = useF1Data(season, championshipType);
+  const { data: round1 } = useRound1Race();
+  const isCurrentSeason = season === 'current' || season === '2026';
+  const predictionsLocked = isCurrentSeason
+    ? (round1?.qualifying_end_utc
+        ? Date.now() > new Date(round1.qualifying_end_utc).getTime()
+        : false)
+    : true; // past seasons are always visible
+
   const [selectedParticipant, setSelectedParticipant] = useState<string>('');
 
   // Update selected participant when data loads
@@ -111,7 +120,16 @@ export const PredictionsView: React.FC<PredictionsViewProps> = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${!predictionsLocked ? 'relative' : ''}`}>
+      {!predictionsLocked && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-xl bg-white/60 backdrop-blur-sm">
+          <span className="text-4xl mb-3">🔒</span>
+          <p className="text-sm font-semibold text-navy text-center px-4">
+            Predictions are hidden until qualifying starts.
+          </p>
+        </div>
+      )}
+      <div className={!predictionsLocked ? 'blur-sm pointer-events-none select-none' : ''}>
       {data?.participants && data.participants.length > 0 && (
         <div className="mb-6 flex justify-center">
           <ToggleGroup
@@ -156,6 +174,7 @@ export const PredictionsView: React.FC<PredictionsViewProps> = ({
           </table>
         </div>
       </div>
+      </div>
     </div>
   );
-}; 
+};
