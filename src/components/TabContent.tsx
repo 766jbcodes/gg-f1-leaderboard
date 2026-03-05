@@ -1,7 +1,6 @@
 import React from 'react';
 import type { SeasonType, ChampionshipType } from '../types/common';
 import { useF1Data } from '../hooks/useF1Data';
-import { useF1AppData } from '../hooks/useF1AppData';
 import { DataTable } from './common/DataTable';
 import { PredictionsView } from './PredictionsView';
 import { ScoringHint } from './ScoringHint';
@@ -33,13 +32,9 @@ interface TabContentProps {
 }
 
 export const TabContent: React.FC<TabContentProps> = ({ tab, season, championshipType, scoringType, appData }) => {
-  // Always call useF1Data hook (it handles both current and static seasons)
-  // Only call useF1AppData if season is 'current' (to avoid conditional hooks)
-  const isCurrentSeason = season === 'current';
-  const appDataQuery = useF1AppData(championshipType);
   const fallbackDataQuery = useF1Data(season, championshipType);
 
-  // Use centralised data if provided, otherwise fallback to useF1Data
+  // Use centralised data if provided by parent, otherwise fall back to useF1Data
   let data: F1AppData | undefined;
   let isLoading: boolean;
   let error: Error | null;
@@ -48,10 +43,6 @@ export const TabContent: React.FC<TabContentProps> = ({ tab, season, championshi
     data = appData.data;
     isLoading = appData.isLoading;
     error = appData.error;
-  } else if (isCurrentSeason) {
-    data = appDataQuery.data;
-    isLoading = appDataQuery.isLoading;
-    error = appDataQuery.error;
   } else {
     data = fallbackDataQuery.data;
     isLoading = fallbackDataQuery.isLoading;

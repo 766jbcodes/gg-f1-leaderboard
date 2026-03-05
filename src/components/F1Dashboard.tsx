@@ -23,8 +23,9 @@ export const F1Dashboard: React.FC<F1DashboardProps> = ({ season }) => {
   const [activeTab, setActiveTab] = useState('leaderboard');
   const [scoringType, setScoringType] = useState<ScoringType>('delta');
 
-  // Use centralised data hook for current season only
-  const appData = season === 'current' ? useF1AppData(championshipType) : undefined;
+  // Always call hook unconditionally (Rules of Hooks), but only use result for current season
+  const appDataQuery = useF1AppData(championshipType);
+  const appData = season === 'current' ? appDataQuery : undefined;
 
   return (
     <div className="pb-12 max-w-7xl mx-auto">

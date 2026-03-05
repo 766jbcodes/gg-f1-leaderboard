@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import MainLayout from './components/MainLayout';
 import { Header } from './components/Header';
@@ -62,14 +62,16 @@ function AppContent() {
   const [showAdmin, setShowAdmin] = useState(false);
   const location = useLocation();
   const [splashDone, setSplashDone] = useState(false);
+  const splashPlayedRef = useRef(false);
   const isHome = location.pathname === '/';
 
-  // On homepage first load: show splash, then fade to page
+  // Show splash once on the first home visit, never again even if user navigates away and back
   useEffect(() => {
-    if (!isHome || splashDone) return;
+    if (!isHome || splashPlayedRef.current) return;
+    splashPlayedRef.current = true;
     const t = setTimeout(() => setSplashDone(true), SPLASH_DURATION_MS);
     return () => clearTimeout(t);
-  }, [isHome, splashDone]);
+  }, [isHome]);
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans selection:bg-papaya/30">

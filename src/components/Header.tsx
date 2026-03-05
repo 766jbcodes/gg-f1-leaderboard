@@ -155,6 +155,7 @@ export const Header: React.FC<HeaderProps> = ({ showAdmin, setShowAdmin }) => {
           <div className="h-px bg-gray-100 my-1" />
           <Link to="/season/2026" className="text-sm text-gray-600 hover:text-papaya" onClick={() => setIsMobileMenuOpen(false)}>2026 Season</Link>
           <Link to="/season/2025" className="text-sm text-gray-600 hover:text-papaya" onClick={() => setIsMobileMenuOpen(false)}>2025 Season</Link>
+          <Link to="/season/2024" className="text-sm text-gray-600 hover:text-papaya" onClick={() => setIsMobileMenuOpen(false)}>2024 Season</Link>
           {!isLoading && (
             user ? (
                <button
