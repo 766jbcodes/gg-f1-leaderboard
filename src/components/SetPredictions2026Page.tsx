@@ -2,13 +2,23 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSeasonPredictions2026 } from '../hooks/useSeasonPredictions2026';
+import { useRound1Race } from '../hooks/useRaces';
 import { DRIVERS_2026, CONSTRUCTORS_2026 } from '../data/drivers2026';
+
+function formatDeadline(iso: string): string {
+  return new Date(iso).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' });
+}
 
 const DRIVER_SLOTS = 22;
 const CONSTRUCTOR_SLOTS = 11;
 
 export function SetPredictions2026Page() {
   const { user } = useAuth();
+  const { data: round1 } = useRound1Race();
+  const locked = round1?.qualifying_end_utc
+    ? Date.now() > new Date(round1.qualifying_end_utc).getTime()
+    : false;
+
   const {
     driverPredictions,
     constructorPredictions,
@@ -102,9 +112,19 @@ export function SetPredictions2026Page() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold text-navy mb-2">Set my 2026 predictions</h1>
-      <p className="text-navy/80 text-sm mb-6">
-        Choose your predicted finishing order for the 2026 season. You can update these anytime.
+      <p className="text-navy/80 text-sm mb-2">
+        Choose your predicted finishing order for the 2026 season.
       </p>
+      {round1?.qualifying_end_utc && (
+        <p className="text-xs text-navy/60 mb-4">
+          Deadline: {formatDeadline(round1.qualifying_end_utc)}
+        </p>
+      )}
+      {locked && (
+        <div className="mb-6 rounded-xl border border-border bg-secondary/20 px-4 py-3 text-sm text-muted-foreground">
+          Predictions are locked — qualifying has started.
+        </div>
+      )}
       <Link
         to="/season/2026"
         className="text-sm text-red font-bold hover:underline mb-6 inline-block"
@@ -122,7 +142,8 @@ export function SetPredictions2026Page() {
               <select
                 value={drivers[i] ?? ''}
                 onChange={(e) => setDriver(i, e.target.value)}
-                className="flex-1 px-3 py-2 bg-white border border-input rounded-md text-navy shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                disabled={locked}
+                className="flex-1 px-3 py-2 bg-white border border-input rounded-md text-navy shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-60"
               >
                 <option value="">Select driver</option>
                 {DRIVERS_2026.map((d) => (
@@ -138,14 +159,16 @@ export function SetPredictions2026Page() {
             </div>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={handleSaveDrivers}
-          disabled={!validDrivers || isSaving}
-          className="py-3 px-6 bg-primary text-primary-foreground font-bold rounded-full shadow-lg hover:bg-primary/90 hover:shadow-primary/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-wide"
-        >
-          {isSaving ? 'Saving…' : 'Save drivers'}
-        </button>
+        {!locked && (
+          <button
+            type="button"
+            onClick={handleSaveDrivers}
+            disabled={!validDrivers || isSaving}
+            className="py-3 px-6 bg-primary text-primary-foreground font-bold rounded-full shadow-lg hover:bg-primary/90 hover:shadow-primary/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-wide"
+          >
+            {isSaving ? 'Saving…' : 'Save drivers'}
+          </button>
+        )}
         {driverSaved && (
           <span className="ml-3 text-sm text-green-700 font-bold">Saved.</span>
         )}
@@ -161,7 +184,8 @@ export function SetPredictions2026Page() {
               <select
                 value={constructors[i] ?? ''}
                 onChange={(e) => setConstructor(i, e.target.value)}
-                className="flex-1 px-3 py-2 bg-white border border-input rounded-md text-navy shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                disabled={locked}
+                className="flex-1 px-3 py-2 bg-white border border-input rounded-md text-navy shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-60"
               >
                 <option value="">Select constructor</option>
                 {CONSTRUCTORS_2026.map((c) => (
@@ -177,14 +201,16 @@ export function SetPredictions2026Page() {
             </div>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={handleSaveConstructors}
-          disabled={!validConstructors || isSaving}
-          className="py-3 px-6 bg-primary text-primary-foreground font-bold rounded-full shadow-lg hover:bg-primary/90 hover:shadow-primary/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-wide"
-        >
-          {isSaving ? 'Saving…' : 'Save constructors'}
-        </button>
+        {!locked && (
+          <button
+            type="button"
+            onClick={handleSaveConstructors}
+            disabled={!validConstructors || isSaving}
+            className="py-3 px-6 bg-primary text-primary-foreground font-bold rounded-full shadow-lg hover:bg-primary/90 hover:shadow-primary/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-wide"
+          >
+            {isSaving ? 'Saving…' : 'Save constructors'}
+          </button>
+        )}
         {constructorSaved && (
           <span className="ml-3 text-sm text-green-700 font-bold">Saved.</span>
         )}

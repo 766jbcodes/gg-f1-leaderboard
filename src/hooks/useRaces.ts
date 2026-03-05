@@ -33,3 +33,20 @@ export function useNextRace() {
   const nextRace = races?.[0] ?? null;
   return { nextRace, races: races ?? [], ...rest };
 }
+
+/** Returns round 1 of the 2026 season, used to lock season predictions before quali. */
+export function useRound1Race() {
+  return useQuery({
+    queryKey: ['races', 2026, 1],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('races')
+        .select('id, season, round, name, race_start_utc, qualifying_end_utc, reminder_sent_at')
+        .eq('season', 2026)
+        .eq('round', 1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as Race | null;
+    },
+  });
+}
