@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNextRace } from '../hooks/useRaces';
+import { useNextRace, useAllRaces } from '../hooks/useRaces';
 import { useWeeklyPrediction } from '../hooks/useWeeklyPrediction';
 import { DRIVERS_2026 } from '../data/drivers2026';
 import { WeeklyLeaderboard } from './WeeklyLeaderboard';
+import { WeeklyPredictionsGrid } from './WeeklyPredictionsGrid';
 
 const DEADLINE_OFFSET_MS = 0;
 
@@ -21,6 +22,11 @@ function isPastDeadline(qualifyingEndUtc: string | null): boolean {
 export function PointsFinishPage() {
   const { user } = useAuth();
   const { nextRace, isLoading: racesLoading, error: racesError } = useNextRace();
+  const { data: allRaces } = useAllRaces(2026);
+  const [selectedRaceId, setSelectedRaceId] = useState<string | null>(null);
+
+  const selectedRace = allRaces?.find((r) => r.id === selectedRaceId)
+    ?? (nextRace ?? null);
   const {
     prediction: savedTop10,
     updatedAt,
@@ -161,6 +167,24 @@ export function PointsFinishPage() {
       </form>
 
       <WeeklyLeaderboard />
+
+      <div className="mt-10">
+        <h2 className="text-xl font-bold text-navy mb-4">Compare picks</h2>
+        {allRaces && allRaces.length > 0 && (
+          <select
+            value={selectedRaceId ?? nextRace?.id ?? ''}
+            onChange={(e) => setSelectedRaceId(e.target.value)}
+            className="px-3 py-2 bg-white border border-input rounded-md text-navy shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent mb-4"
+          >
+            {allRaces.map((r) => (
+              <option key={r.id} value={r.id}>
+                R{r.round} — {r.name}
+              </option>
+            ))}
+          </select>
+        )}
+        {selectedRace && <WeeklyPredictionsGrid race={selectedRace} />}
+      </div>
     </div>
   );
 }
