@@ -6,7 +6,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const DEFAULT_ERGAST = 'https://ergast.com/api/f1';
+const DEFAULT_ERGAST = 'https://api.jolpi.ca/ergast/f1';
 
 interface ErgastResult {
   position: string;

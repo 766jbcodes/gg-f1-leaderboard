@@ -5,7 +5,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const DEFAULT_ERGAST = 'https://ergast.com/api/f1';
+const DEFAULT_ERGAST = 'https://api.jolpi.ca/ergast/f1';
 const SYNC_KEY = 'race_results_backfill';
 const IN_PROGRESS_WINDOW_MS = 2 * 60 * 1000; // 2 minutes
 
